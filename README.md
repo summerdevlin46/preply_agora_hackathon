@@ -9,7 +9,9 @@
 
 - Create assingments (teacher's input?) and this would be supervised by the agent. 
   - teacher sets levels or suggest level
-  - input text through typing (HUMAN IN THE LOOP)
+     - assignments can be predefined. Automatically make vocab lessons and writing drills
+     - Manual worksheet generation just in case
+  - student inputs text through typing (HUMAN IN THE LOOP)
   - agent ama, the bot would still give feedback
 - How long should the exercise last?
 e.g. 15 min, only 20 seconds to conjugate verbs. Feedback loop would have some RL element
