@@ -7,10 +7,15 @@
 
 # Main idea
 
+Teaching assistant on the platform is quite limited. Needs to be better aligned.
+
+
 - Create assingments (teacher's input?) and this would be supervised by the agent. 
-  - teacher sets levels or suggest level
+  - E.g. gimme an exercise for section 3. Options - start simple
+  - teacher sets levels or suggest level (EXERCISES SHOULD BE MORE GRANULAR)
      - assignments can be predefined. Automatically make vocab lessons and writing drills
      - Manual worksheet generation just in case
+     - OCR component -> inference time.
   - student inputs text through typing (HUMAN IN THE LOOP)
   - agent ama, the bot would still give feedback
     - Replace ama agent, because very uncanny. Cartooney agent
