@@ -13,6 +13,7 @@
      - Manual worksheet generation just in case
   - student inputs text through typing (HUMAN IN THE LOOP)
   - agent ama, the bot would still give feedback
+    - Replace ama agent, because very uncanny. Cartooney agent
 - How long should the exercise last?
 e.g. 15 min, only 20 seconds to conjugate verbs. Feedback loop would have some RL element
 
