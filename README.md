@@ -8,7 +8,7 @@
 # Main idea
 
 - Create assingments (teacher's input?) and this would be supervised by the agent. 
-  - teacher sets levels
+  - teacher sets levels or suggest level
   - input text through typing (HUMAN IN THE LOOP)
   - agent ama, the bot would still give feedback
 - How long should the exercise last?
