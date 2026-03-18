@@ -9,7 +9,10 @@
 
 
 Entry point: Gradio UI + Typer CLI
-Run:  uv run python app.py serve
+Run:  uv run python app.py
+
+- To create a public link, set `share=True` in `launch()
+
 Test: uv pytest tests/test_app.py -v
 
 # Requirements

@@ -74,5 +74,5 @@ package = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-ra"
+addopts = "-ra"  # report extra test info and report all except passes
 # last line may be unnecessary, dont like hacking pythonpath, double check
