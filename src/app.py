@@ -1,5 +1,6 @@
 import gradio as gr
 import typer
+
 from mirror.ui.components import build_exercise_section, build_worksheet_section
 from mirror.utils.ocr import parse_worksheet
 
@@ -12,30 +13,32 @@ def generate_exercise(learner_name: str, topic: str) -> str:
     TODO: replace with real orchestrator call later.
     """
     out = "Placeholder nothing burger exercise"
-    print(out)
-    #todo: need logger isntead
+    print(out)  # TODO: replace with logger
     return out
-    ##raise NotImplementedError
-
 
 
 def build_ui() -> gr.Blocks:
     with gr.Blocks() as demo:
         gr.Markdown("## 🪞 Mirror — Post-Lesson Language Coach")
 
-        with gr.Row():
-            student_name = gr.Textbox(label="Name")
-            lesson_topic = gr.Textbox(label="Topic")
+        # Build reusable UI sections from components.py
+        student_name, lesson_topic, submit_btn, output_box = build_exercise_section()
+        worksheet_file, parsed_text = build_worksheet_section()
 
-        # TODO: add a submit button
-        submit_btn = gr.Button("Submit")
-        #TODO, wiring requires this when clicking button instead
-        ###generated_exercise = generate_exercise(learner_name="Summer", topic="present perfect idk")
-        ###gr.Textbox(generated_exercise)
+        # Wire app logic to the exercise section
+        submit_btn.click(
+            fn=generate_exercise,
+            inputs=[student_name, lesson_topic],
+            outputs=output_box,
+        )
 
-        # TODO: add a gr.Textbox for output (the generated exercise)
-        output_box = gr.Textbox(label="Exercise")
-        submit_btn.click(fn=generate_exercise, inputs=[student_name, lesson_topic], outputs=output_box)
+        # Wire OCR parsing to the worksheet section
+        worksheet_file.change(
+            fn=parse_worksheet,
+            inputs=worksheet_file,
+            outputs=parsed_text,
+        )
+
     return demo
 
 @app.command()
