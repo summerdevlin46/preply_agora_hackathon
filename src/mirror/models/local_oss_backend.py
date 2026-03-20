@@ -32,14 +32,14 @@ def generate_with_local_oss(prompt: str, model: str | None = None) -> str:
             max_tokens=300,
             temperature=0.2,
         )
-
         return response.choices[0].message.content
 
     except APIConnectionError as exc:
         logger.error("Local OSS server unreachable at %s", base_url)
-        return (
+        raise RuntimeError(
             "Local model server is not running.\n\n"
             f"Expected at: {base_url}\n\n"
-            "Run:\n"
-            "uv run python -m mlx_lm server --model HuggingFaceTB/SmolLM2-360M-Instruct\n"
-        )
+            "Start it in another terminal with:\n"
+            "uv run python -m mlx_lm server --model HuggingFaceTB/SmolLM2-360M-Instruct "
+            "--host 127.0.0.1 --port 8081"
+        ) from exc
