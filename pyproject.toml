@@ -27,11 +27,6 @@ your-project = "your_project.cli:app"
 
 [dependency-groups]
 
-# UI layer (optional)
-ui = [
-  "gradio==6.9",
-]
-
 # LLM, see if langchain or llmindex or something else
 
 llm = [

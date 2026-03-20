@@ -40,20 +40,37 @@ for apple + local models
 make setup-apple
 ```
 
-# Running the app
+# Running the backend API
 
 ```bash
-make run
+uv run uvicorn app:app --app-dir src --reload
 ```
 
-Dev mode:
+# Running the Next frontend
+
 ```bash
-make run-dev
+cd public
+npm run dev
 ```
 
-Public share:
-```bash
-make run-share
+Frontend expects the backend at `http://127.0.0.1:8000` by default.
+Override with `NEXT_PUBLIC_API_BASE_URL`.
+
+Backend CORS defaults to `http://localhost:3000` and `http://127.0.0.1:3000`.
+Override with `MIRROR_CORS_ORIGINS`.
+
+# API endpoints
+
+- `GET /api/health`
+- `POST /api/worksheet/parse` with multipart field `file`
+- `POST /api/exercises/generate` with JSON:
+
+```json
+{
+  "learner_name": "Ava",
+  "topic": "Travel plans",
+  "worksheet_text": "..."
+}
 ```
 
 # Model backends
