@@ -1,39 +1,23 @@
 import os
 
-from mirror.generation.excerpt_selector import select_reference_excerpt
-from mirror.generation.prompt_builder import build_exercise_prompt
+from openai import OpenAI
 
 
-def generate_exercise(learner_name: str, topic: str, worksheet_text: str) -> str:
-    if not worksheet_text.strip():
-        return "Please upload a worksheet first."
-
-    reference_excerpt = select_reference_excerpt(worksheet_text)
-
+def generate_exercise_text(prompt: str, model: str = "gpt-5") -> str:
+    """
+    Generate the final exercise text from a prepared prompt.
+    Falls back to returning the prompt if no API key is configured.
+    """
     if not os.getenv("OPENAI_API_KEY"):
-        return build_exercise_prompt(
-            learner_name=learner_name,
-            topic=topic,
-            reference_excerpt=reference_excerpt,
+        return (
+            "OPENAI_API_KEY is not set.\n\n"
+            "Prompt preview:\n\n"
+            f"{prompt}"
         )
 
-    try:
-        from openai import OpenAI
-    except ImportError as exc:
-        return f"Generation error: missing OpenAI dependency: {exc}"
-
-    prompt = build_exercise_prompt(
-        learner_name=learner_name,
-        topic=topic,
-        reference_excerpt=reference_excerpt,
+    client = OpenAI()
+    response = client.responses.create(
+        model=model,
+        input=prompt,
     )
-
-    try:
-        client = OpenAI()
-        response = client.responses.create(
-            model="gpt-5",
-            input=prompt,
-        )
-        return response.output_text
-    except Exception as exc:
-        return f"Generation error: {exc}"
+    return response.output_text

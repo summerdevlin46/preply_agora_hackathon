@@ -3,8 +3,8 @@ import re
 
 def select_reference_excerpt(worksheet_text: str, max_chars: int = 1800) -> str:
     """
-    Pick the most instruction-rich parts of the worksheet while staying
-    within a prompt budget.
+    Select instruction-rich chunks from the worksheet while staying within
+    a prompt budget.
     """
     if not worksheet_text.strip():
         return ""
@@ -15,7 +15,18 @@ def select_reference_excerpt(worksheet_text: str, max_chars: int = 1800) -> str:
         lowered = chunk.lower()
         points = 0
 
-        keywords = ["instruction", "complete", "fill", "rewrite", "choose", "match", "answer"]
+        keywords = [
+            "instruction",
+            "instructions",
+            "complete",
+            "fill",
+            "rewrite",
+            "choose",
+            "match",
+            "answer",
+            "exercise",
+            "example",
+        ]
         for kw in keywords:
             if kw in lowered:
                 points += 3
@@ -33,7 +44,7 @@ def select_reference_excerpt(worksheet_text: str, max_chars: int = 1800) -> str:
 
     ranked = sorted(chunks, key=score, reverse=True)
 
-    selected = []
+    selected: list[str] = []
     total = 0
 
     for chunk in ranked:
