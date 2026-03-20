@@ -50,6 +50,7 @@ documents = [
 # NOTE: requires system dependency: `tesseract` binary installed
 ocr = [
   "pytesseract>=0.3.13,<0.4",
+  "pdf2image==1.17"  # maybe unneeded
 ]
 
 # TODO: test usability of this, because it may be funky with np 2

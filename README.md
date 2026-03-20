@@ -6,7 +6,7 @@
 - draft
 
 # How to
-
+TODO: Update instructions with the make command equivalents!!!!
 
 Entry point: Gradio UI + Typer CLI
 Run:  uv run python app.py
@@ -18,3 +18,5 @@ Test: uv pytest tests/test_app.py -v
 # Requirements
 
 uv
+
+Always cheeck if dependencies available with ` ./scripts/system_deps.sh check`
