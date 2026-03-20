@@ -41,11 +41,20 @@ def test_hf_uses_selected_model(monkeypatch):
     assert calls[0]["model"] == "some/model"
 
 
-def test_hf_retries_without_model_if_model_not_supported(monkeypatch):
+def test_hf_requires_explicit_model(monkeypatch):
+    monkeypatch.setenv("HF_TOKEN", "fake-token")
+    monkeypatch.setenv("HF_MODEL", "")
+
+    try:
+        generate_with_huggingface("hello")
+        assert False, "Expected RuntimeError"
+    except RuntimeError as exc:
+        assert "HF_MODEL is required" in str(exc)
+
+
+def test_hf_raises_clear_error_for_unsupported_model(monkeypatch):
     monkeypatch.setenv("HF_TOKEN", "fake-token")
     monkeypatch.setenv("HF_MODEL", "unsupported/model")
-
-    calls = []
 
     class FakeHTTPRequest:
         method = "POST"
@@ -65,17 +74,15 @@ def test_hf_retries_without_model_if_model_not_supported(monkeypatch):
             class completions:
                 @staticmethod
                 def create(**kwargs):
-                    calls.append(kwargs)
-                    if "model" in kwargs:
-                        raise BadRequestError(
-                            "model_not_supported",
-                            response=FakeHTTPResponse(),
-                        )
-                    return DummyResponse("fallback-ok")
+                    raise BadRequestError(
+                        "model_not_supported",
+                        response=FakeHTTPResponse(),
+                    )
 
     monkeypatch.setattr("mirror.models.huggingface_backend.InferenceClient", DummyClient)
 
-    result = generate_with_huggingface("hello")
-    assert result == "fallback-ok"
-    assert "model" in calls[0]
-    assert "model" not in calls[1]
+    try:
+        generate_with_huggingface("hello")
+        assert False, "Expected RuntimeError"
+    except RuntimeError as exc:
+        assert "not supported by your enabled providers" in str(exc)

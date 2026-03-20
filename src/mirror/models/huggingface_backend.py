@@ -14,7 +14,13 @@ def generate_with_huggingface(prompt: str, model: str | None = None) -> str:
     token = get_env("HF_TOKEN")
 
     env_model = os.getenv("HF_MODEL", "").strip()
-    selected_model = (model or env_model or None)
+    selected_model = (model or env_model or "").strip()
+
+    if not selected_model:
+        raise RuntimeError(
+            "HF_MODEL is required for the current Hugging Face chat setup. "
+            "Set HF_MODEL to a provider-supported chat model."
+        )
 
     client = InferenceClient(api_key=token)
 
@@ -23,36 +29,28 @@ def generate_with_huggingface(prompt: str, model: str | None = None) -> str:
         {"role": "user", "content": prompt},
     ]
 
+    logger.info("Using Hugging Face model: %s", selected_model)
+
     try:
-        kwargs = {
-            "messages": messages,
-            "max_tokens": 300,
-            "temperature": 0.2,
-        }
-
-        if selected_model:
-            kwargs["model"] = selected_model
-            logger.info("Using Hugging Face model: %s", selected_model)
-        else:
-            logger.info("Using Hugging Face recommended default chat model")
-
-        completion = client.chat.completions.create(**kwargs)
+        completion = client.chat.completions.create(
+            model=selected_model,
+            messages=messages,
+            max_tokens=300,
+            temperature=0.2,
+        )
         return completion.choices[0].message.content
 
     except BadRequestError as exc:
         error_text = str(exc)
 
-        if selected_model and "model_not_supported" in error_text:
-            logger.warning(
-                "HF model '%s' is not supported by enabled providers. Retrying without explicit model.",
+        if "model_not_supported" in error_text:
+            logger.error(
+                "HF model '%s' is not supported by enabled providers.",
                 selected_model,
             )
-
-            completion = client.chat.completions.create(
-                messages=messages,
-                max_tokens=300,
-                temperature=0.2,
-            )
-            return completion.choices[0].message.content
+            raise RuntimeError(
+                f"HF model '{selected_model}' is not supported by your enabled providers. "
+                "Choose a provider-supported chat model from the Hugging Face Chat Completion playground."
+            ) from exc
 
         raise
