@@ -1,5 +1,6 @@
 .PHONY: help \
 	lock sync sync-all sync-dev update clean test \
+	env-create env-check \
 	deps-check deps-install deps-uninstall setup \
 	run run-dev run-share \
 	docker-build docker-run docker-run-dev docker-shell
@@ -7,6 +8,7 @@
 APP_NAME := mirror-app
 APP_PORT := 7860
 DEV_PORT := 7699
+ENV_FILE := .env
 
 help:
 	@echo "Available targets:"
@@ -19,6 +21,8 @@ help:
 	@echo "  make update          - Update lockfile and sync all groups"
 	@echo "  make clean           - Remove caches"
 	@echo "  make test            - Run tests"
+	@echo "  make env-create      - Create .env from .env.example"
+	@echo "  make env-check       - Check that .env exists"
 	@echo "  make deps-check      - Check host OCR system dependencies"
 	@echo "  make deps-install    - Install host OCR system dependencies"
 	@echo "  make deps-uninstall  - Remove host OCR system dependencies"
@@ -27,8 +31,8 @@ help:
 	@echo "  make run-dev         - Run the app on dev port ($(DEV_PORT))"
 	@echo "  make run-share       - Run the app with Gradio share enabled"
 	@echo "  make docker-build    - Build the Docker image"
-	@echo "  make docker-run      - Run the Docker image"
-	@echo "  make docker-run-dev  - Run the Docker image interactively"
+	@echo "  make docker-run      - Run the Docker image with .env"
+	@echo "  make docker-run-dev  - Run the Docker image interactively with .env"
 	@echo "  make docker-shell    - Open a shell inside the Docker image"
 
 lock:
@@ -58,6 +62,12 @@ clean:
 test:
 	uv run pytest
 
+env-create:
+	cp .env.example .env && echo ".env created. Fill in secrets."
+
+env-check:
+	@test -f $(ENV_FILE) || (echo ".env file not found. Copy from .env.example"; exit 1)
+
 deps-check:
 	./scripts/system_deps.sh check
 
@@ -69,23 +79,29 @@ deps-uninstall:
 
 setup: deps-install sync-all
 
-run:
+run: env-check
 	uv run python src/app.py --port $(APP_PORT)
 
-run-dev:
+run-dev: env-check
 	uv run python src/app.py --port $(DEV_PORT)
 
-run-share:
+run-share: env-check
 	uv run python src/app.py --port $(APP_PORT) --share
 
 docker-build:
 	docker build -t $(APP_NAME) .
 
-docker-run:
-	docker run --rm -p $(APP_PORT):$(APP_PORT) $(APP_NAME)
+docker-run: env-check
+	docker run --rm \
+		--env-file $(ENV_FILE) \
+		-p $(APP_PORT):$(APP_PORT) \
+		$(APP_NAME)
 
-docker-run-dev:
-	docker run --rm -it -p $(APP_PORT):$(APP_PORT) $(APP_NAME)
+docker-run-dev: env-check
+	docker run --rm -it \
+		--env-file $(ENV_FILE) \
+		-p $(APP_PORT):$(APP_PORT) \
+		$(APP_NAME)
 
 docker-shell:
 	docker run --rm -it --entrypoint /bin/bash $(APP_NAME)

@@ -5,6 +5,13 @@ from mirror.ui.components import build_exercise_section, build_worksheet_section
 from mirror.ocr import parse_worksheet
 from mirror.agents import run_exercise_workflow
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
 app = typer.Typer()
 
 

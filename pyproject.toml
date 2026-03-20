@@ -39,6 +39,7 @@ llm = [
   "langchain>=1,<2",
   "langgraph>=1,<2",
   "langchain-openai>=0.3,<1",
+  "huggingface_hub==1.7.2",
 ]
 
 #TODO: overcomplicating things but for embedding retrieval useful
@@ -60,6 +61,12 @@ ocr = [
   "pytesseract>=0.3.13,<0.4",
   "pdf2image==1.17"  # maybe unneeded
 ]
+
+#TODO: if doing local runs or better yet some sort of modeling directly...
+###oss_local = [
+###  "transformers>=4.51,<5",
+###  "torch>=2.6,<3",
+###]
 
 # TODO: test usability of this, because it may be funky with np 2
 audio = [

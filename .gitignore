@@ -10,6 +10,9 @@ build/
 # Virtual environment
 .venv/
 
+# Secrets
+.env
+
 # Tool caches
 .pytest_cache/
 .ruff_cache/
