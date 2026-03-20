@@ -1,6 +1,4 @@
-import pytest
 from huggingface_hub.errors import BadRequestError
-
 from mirror.models.huggingface_backend import generate_with_huggingface
 
 
@@ -49,6 +47,16 @@ def test_hf_retries_without_model_if_model_not_supported(monkeypatch):
 
     calls = []
 
+    class FakeHTTPRequest:
+        method = "POST"
+        url = "https://router.huggingface.co/v1/chat/completions"
+
+    class FakeHTTPResponse:
+        status_code = 400
+        text = "model_not_supported"
+        headers = {}
+        request = FakeHTTPRequest()
+
     class DummyClient:
         def __init__(self, api_key=None):
             pass
@@ -59,8 +67,10 @@ def test_hf_retries_without_model_if_model_not_supported(monkeypatch):
                 def create(**kwargs):
                     calls.append(kwargs)
                     if "model" in kwargs:
-                        response = type("Resp", (), {"status_code": 400, "text": "model_not_supported"})()
-                        raise BadRequestError("model_not_supported", response=response)
+                        raise BadRequestError(
+                            "model_not_supported",
+                            response=FakeHTTPResponse(),
+                        )
                     return DummyResponse("fallback-ok")
 
     monkeypatch.setattr("mirror.models.huggingface_backend.InferenceClient", DummyClient)

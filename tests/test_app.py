@@ -1,34 +1,15 @@
-import pytest
-from app import generate_exercise
+from app import build_ui, parse_and_store_worksheet
 
 
-def test_generate_exercise_returns_string():
-    """Output should always be a string."""
-    result = generate_exercise("Alice", "past tense")
-    assert isinstance(result, str)
+def test_build_ui_returns_blocks():
+    demo = build_ui()
+    assert demo is not None
 
 
-@pytest.mark.skip(reason="placeholder not implemented yet")
-def test_generate_exercise_contains_topic():
-    """The exercise should mention the topic somewhere."""
-    result = generate_exercise("Alice", "past tense")
-    assert "past tense" in result.lower()
+def test_parse_and_store_worksheet_returns_preview_and_state(monkeypatch):
+    monkeypatch.setattr("app.parse_worksheet", lambda _: "parsed worksheet text")
 
+    preview, state = parse_and_store_worksheet("fake.pdf")
 
-@pytest.mark.skip(reason="placeholder not implemented yet")
-def test_generate_exercise_contains_learner_name():
-    """The exercise should be personalised with the learner's name."""
-    result = generate_exercise("Alice", "past tense")
-    assert "Alice" in result
-
-
-@pytest.mark.skip(reason="placeholder not implemented yet")
-def test_generate_exercise_empty_topic():
-    """TODO: decide — should an empty topic raise, or return a generic exercise?"""
-    raise NotImplementedError
-
-
-@pytest.mark.skip(reason="placeholder not implemented yet")
-def test_generate_exercise_empty_name():
-    """TODO: decide — should an empty name raise, or still work?"""
-    raise NotImplementedError
+    assert preview == "parsed worksheet text"
+    assert state == "parsed worksheet text"
