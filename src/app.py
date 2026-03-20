@@ -41,8 +41,8 @@ def build_ui() -> gr.Blocks:
 
     return demo
 
-@app.command()
-def serve(
+@app.callback(invoke_without_command=True)
+def main(
     port: int = typer.Option(7860, help="Port to run Gradio on"),
     share: bool = typer.Option(False, help="Create a public Gradio share link"),
 ):

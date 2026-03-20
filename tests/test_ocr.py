@@ -1,5 +1,6 @@
 import pytest
-from mirror.utils.ocr import parse_worksheet, clean_text
+from mirror.ocr import parse_worksheet
+from mirror.ocr.text_cleaning import clean_text
 
 
 @pytest.mark.skip(reason="OCR not implemented yet")

@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 ##from mirror.ocr.service import parse_worksheet
-from mirror.ocr.ocr import parse_worksheet
+from mirror.ocr.parser import parse_worksheet
 
 
 def test_parse_worksheet_uses_pdf_extraction_when_text_is_useful(tmp_path: Path):
