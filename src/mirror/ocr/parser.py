@@ -1,7 +1,7 @@
-from mirror.ocr.utils.file_types import validate_uploaded_file, is_pdf, is_supported_image
-from mirror.ocr.utils.pdf_text import extract_text_from_pdf
-from mirror.ocr.utils.image_ocr import ocr_image, ocr_pdf
-from mirror.ocr.utils.text_cleaning import clean_text
+from mirror.ocr.file_types import validate_uploaded_file, is_pdf, is_supported_image
+from mirror.ocr.pdf_text import extract_text_from_pdf
+from mirror.ocr.image_ocr import ocr_image, ocr_pdf
+from mirror.ocr.text_cleaning import clean_text
 
 
 def parse_worksheet(file) -> str:
