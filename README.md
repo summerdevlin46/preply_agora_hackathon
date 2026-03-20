@@ -1,41 +1,155 @@
-# Hackathon project
+# 🪞 Mirror — Post-Lesson Language Coach
 
-3 main branches
-- main, only to merge
-- dev, work on this
-- draft
+Agentic pipeline that:
+- parses worksheets (OCR)
+- extracts style + structure
+- generates new exercises for a different topic
 
-# How to
-TODO: Update instructions with the make command equivalents!!!!
+---
 
-Entry point: Gradio UI + Typer CLI
-Run:  uv run python app.py
+# 🚀 Project Structure
 
-- To create a public link, set `share=True` in `launch()
+- `main` → stable only  
+- `dev` → active work  
+- `draft` → experiments  
 
-Test: uv pytest tests/test_app.py -v
+---
 
-NEW VER:
+# ⚙️ Setup
+
+## Requirements
+
+- Python 3.13+
+- `uv` (https://github.com/astral-sh/uv)
+
+Optional system dependencies (OCR):
+
+```bash
+./scripts/system_deps.sh install
+```
+
+# Install dependencies
+
 ```bash
 make setup
+```
+
+for apple + local models
+
+```bash
+make setup-apple
+```
+
+# Running the app
+
+```bash
+make run
+```
+
+Dev mode:
+```bash
 make run-dev
 ```
 
-# Requirements
+Public share:
+```bash
+make run-share
+```
 
-uv
+# Model backends
 
-Always cheeck if dependencies available with ` ./scripts/system_deps.sh check`
+App supports 3 backends:
 
-# Important missing todos.
+## Local OSS (rec for dev)
 
-update .venv to `MIRROR_MODEL_BACKEND=huggingface`
+```bash
+uv run python -m mlx_lm server \
+  --model HuggingFaceTB/SmolLM2-360M-Instruct \
+  --host 127.0.0.1 \
+  --port 8081
+```
 
-add ci/cd
-move secrets from local to one branch in dev for CI/CD. USE AWS Secrets Manager
+### Run app
 
-Put OPENAI_API_KEY and HF_TOKEN in GitHub Secrets
+```bash
+make run
+```
 
-When you deploy to AWS, store those same real values in AWS Secrets Manager
+`.env`
 
-Keep OPENAI_MODEL, HF_MODEL, and MIRROR_MODEL_BACKEND as environment config unless you have a reason to hide them
+```bash
+MIRROR_MODEL_BACKEND=local_oss
+LOCAL_OSS_BASE_URL=http://127.0.0.1:8081/v1
+LOCAL_OSS_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct
+```
+
+## OpenAI
+
+```bash
+MIRROR_MODEL_BACKEND=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5
+```
+
+## Hugging Face (inference providers)
+
+```bash
+MIRROR_MODEL_BACKEND=huggingface
+HF_TOKEN=...
+HF_MODEL=meta-llama/Llama-3.1-8B-Instruct:novita
+```
+
+- Requires provider-supported models
+- may consume credits
+
+## Testing
+
+```bash
+make test
+```
+
+## Useful commands
+
+```bash
+make clean
+make update
+make deps-check
+```
+
+## Secrets and Deployment
+
+### Local
+
+Use .env (never commit)
+
+### Github
+
+Add to **GitHub Secrets**
+- `OPEN_API_KEY`
+- `HF_TOKEN`
+
+### AWS (future)
+- Use AWS Secrets Manager
+- Inject into runtime environment
+
+# Architcture notes:
+
+Pipeline (LangGraph):
+
+`worksheet → excerpt → style → prompt → generate → verify → repair`
+
+Features:
+
+- retry/repair loop
+- prompt shaping
+- backend abstraction (OpenAI / HF / local)
+
+# TODO
+
+- [ ] CI/CD
+- [ ] better prompt tuning
+- [ ] streaming responses in Gradio
+- [ ] caching worksheet embeddings
+- [ ] better exercise formatting (important for demo quality)
+- [ ] caching OCR + embeddings
+- [ ] improve verification node

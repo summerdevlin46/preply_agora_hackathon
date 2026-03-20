@@ -16,10 +16,10 @@ help:
 	@echo "  make lock                  - Generate/update uv.lock"
 	@echo "  make sync                  - Sync base dependencies"
 	@echo "  make install_lean          - Lock and sync base dependencies"
-	@echo "  make install_all           - Lock and sync all dependencies"
+	@echo "  make install_all           - Lock and sync all dependency groups"
 	@echo "  make sync-all              - Sync all dependency groups"
 	@echo "  make sync-dev              - Sync base + dev group"
-	@echo "  make sync-apple-local      - Sync Apple Silicon local-LLM dependencies"
+	@echo "  make sync-apple-local      - Sync all groups including Apple local deps"
 	@echo "  make update                - Update lockfile and sync all groups"
 	@echo "  make clean                 - Remove caches"
 	@echo "  make test                  - Run tests"
@@ -29,7 +29,7 @@ help:
 	@echo "  make deps-install          - Install host OCR system dependencies"
 	@echo "  make deps-uninstall        - Remove host OCR system dependencies"
 	@echo "  make setup                 - Install host deps + all Python deps"
-	@echo "  make setup-apple           - Host deps + all Python deps + Apple local deps"
+	@echo "  make setup-apple           - Same as setup, including apple_local via all-groups"
 	@echo "  make run                   - Run the app on default port ($(APP_PORT))"
 	@echo "  make run-dev               - Run the app on dev port ($(DEV_PORT))"
 	@echo "  make run-share             - Run the app with Gradio share enabled"
@@ -57,8 +57,9 @@ sync-all:
 sync-dev:
 	uv sync --group dev
 
+# Keep this as an alias so it does not prune other groups.
 sync-apple-local:
-	uv sync --group apple_local
+	uv sync --all-groups
 
 update:
 	uv lock --upgrade
@@ -88,7 +89,7 @@ deps-uninstall:
 
 setup: deps-install sync-all
 
-setup-apple: deps-install sync-all sync-apple-local
+setup-apple: deps-install sync-all
 
 run: env-check
 	uv run python src/app.py --port $(APP_PORT)
@@ -100,13 +101,13 @@ run-share: env-check
 	uv run python src/app.py --port $(APP_PORT) --share
 
 local-oss-serve:
-	uv run python -m mlx_lm.server --model HuggingFaceTB/SmolLM2-360M-Instruct --host 127.0.0.1 --port 8081
+	uv run python -m mlx_lm server --model HuggingFaceTB/SmolLM2-360M-Instruct --host 127.0.0.1 --port 8081
 
 local-oss-serve-tiny:
-	uv run python -m mlx_lm.server --model HuggingFaceTB/SmolLM2-135M-Instruct --host 127.0.0.1 --port 8081
+	uv run python -m mlx_lm server --model HuggingFaceTB/SmolLM2-135M-Instruct --host 127.0.0.1 --port 8081
 
 local-oss-serve-tinyllama:
-	uv run python -m mlx_lm.server --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --host 127.0.0.1 --port 8081
+	uv run python -m mlx_lm server --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --host 127.0.0.1 --port 8081
 
 docker-build:
 	docker build -t $(APP_NAME) .
