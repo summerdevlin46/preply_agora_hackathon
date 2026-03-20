@@ -1,11 +1,11 @@
+import logging
+
 import gradio as gr
 import typer
 
 from mirror.ui.components import build_exercise_section, build_worksheet_section
 from mirror.ocr import parse_worksheet
 from mirror.agents import run_exercise_workflow
-
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +26,7 @@ def build_ui() -> gr.Blocks:
 
         worksheet_state = gr.State("")
 
-        student_name, lesson_topic, submit_btn, output_box = build_exercise_section()
+        student_name, lesson_topic, teacher_prompt, submit_btn, output_box = build_exercise_section()
         worksheet_file, parsed_text = build_worksheet_section()
 
         worksheet_file.change(
@@ -37,7 +37,7 @@ def build_ui() -> gr.Blocks:
 
         submit_btn.click(
             fn=run_exercise_workflow,
-            inputs=[student_name, lesson_topic, worksheet_state],
+            inputs=[student_name, lesson_topic, teacher_prompt, worksheet_state],
             outputs=output_box,
         )
 

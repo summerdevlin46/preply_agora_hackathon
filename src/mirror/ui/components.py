@@ -1,7 +1,6 @@
 import gradio as gr
 
-
-def build_exercise_section() -> tuple[gr.Textbox, gr.Textbox, gr.Button, gr.Textbox]:
+def build_exercise_section():
     """
     Builds the learner exercise input/output section.
     Returns the components that app.py needs to wire up.
@@ -12,13 +11,22 @@ def build_exercise_section() -> tuple[gr.Textbox, gr.Textbox, gr.Button, gr.Text
         student_name = gr.Textbox(label="Name")
         lesson_topic = gr.Textbox(label="Topic")
 
+    teacher_prompt = gr.Textbox(
+        label="Teacher Notes / Pedagogical Prompt",
+        placeholder=(
+            "Optional: e.g. Make it A2 level, communicative, with 5 gap-fill items "
+            "and a short speaking follow-up."
+        ),
+        lines=4,
+    )
+
     submit_btn = gr.Button("Submit")
-    output_box = gr.Textbox(label="Exercise")
+    output_box = gr.Textbox(label="Exercise", lines=16)
 
-    return student_name, lesson_topic, submit_btn, output_box
+    return student_name, lesson_topic, teacher_prompt, submit_btn, output_box
 
 
-def build_worksheet_section() -> tuple[gr.File, gr.Textbox]:
+def build_worksheet_section():
     """
     Builds the teacher worksheet upload section.
     Returns the file input and parsed text output components.

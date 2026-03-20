@@ -26,6 +26,7 @@ def analyze_style_node(state: ExerciseState) -> ExerciseState:
 def build_prompt_node(state: ExerciseState) -> ExerciseState:
     learner_name = state.get("learner_name", "").strip() or "the learner"
     topic = state.get("topic", "").strip()
+    teacher_prompt = state.get("teacher_prompt", "").strip()
     reference_excerpt = state.get("reference_excerpt", "").strip()
     style_summary = state.get("style_summary", "").strip()
 
@@ -35,6 +36,7 @@ def build_prompt_node(state: ExerciseState) -> ExerciseState:
     prompt = build_exercise_prompt(
         learner_name=learner_name,
         topic=topic,
+        teacher_prompt=teacher_prompt,
         reference_excerpt=reference_excerpt,
         style_summary=style_summary,
     )
@@ -64,12 +66,14 @@ def verify_node(state: ExerciseState) -> ExerciseState:
 def build_repair_prompt_node(state: ExerciseState) -> ExerciseState:
     original_prompt = state.get("prompt", "").strip()
     topic = state.get("topic", "").strip()
+    teacher_prompt = state.get("teacher_prompt", "").strip()
     bad_output = state.get("output", "").strip()
     verification_error = state.get("error", "").strip()
 
     repair_prompt = build_repair_prompt(
         original_prompt=original_prompt,
         topic=topic,
+        teacher_prompt=teacher_prompt,
         bad_output=bad_output,
         verification_error=verification_error,
     )

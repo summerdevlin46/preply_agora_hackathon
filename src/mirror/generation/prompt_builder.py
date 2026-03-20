@@ -2,9 +2,12 @@
 def build_exercise_prompt(
     learner_name: str,
     topic: str,
+    teacher_prompt: str,
     reference_excerpt: str,
     style_summary: str,
 ) -> str:
+    teacher_notes_block = teacher_prompt.strip() or "No extra teacher notes were provided."
+
     return f"""
 You are an expert language tutor.
 
@@ -19,6 +22,9 @@ Requirements:
 - Include clear instructions
 - Include 5 to 8 questions
 - At the end, add a short answer key
+
+Teacher notes / pedagogical guidance:
+{teacher_notes_block}
 
 Style summary:
 {style_summary}

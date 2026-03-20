@@ -71,11 +71,17 @@ def build_workflow():
 _WORKFLOW = build_workflow()
 
 
-def run_exercise_workflow(learner_name: str, topic: str, worksheet_text: str) -> str:
+def run_exercise_workflow(
+    learner_name: str,
+    topic: str,
+    teacher_prompt: str,
+    worksheet_text: str,
+) -> str:
     result = _WORKFLOW.invoke(
         {
             "learner_name": learner_name,
             "topic": topic,
+            "teacher_prompt": teacher_prompt,
             "worksheet_text": worksheet_text,
             "retry_count": 0,
             "error": "",
