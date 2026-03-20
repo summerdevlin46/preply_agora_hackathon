@@ -1,4 +1,12 @@
-.PHONY: help lock sync sync-all sync-dev update clean test run deps-check deps-install deps-uninstall setup
+.PHONY: help \
+	lock sync sync-all sync-dev update clean test \
+	deps-check deps-install deps-uninstall setup \
+	run run-dev run-share \
+	docker-build docker-run docker-run-dev docker-shell
+
+APP_NAME := mirror-app
+APP_PORT := 7860
+DEV_PORT := 7699
 
 help:
 	@echo "Available targets:"
@@ -11,11 +19,17 @@ help:
 	@echo "  make update          - Update lockfile and sync all groups"
 	@echo "  make clean           - Remove caches"
 	@echo "  make test            - Run tests"
-	@echo "  make run             - Run the app"
 	@echo "  make deps-check      - Check host OCR system dependencies"
 	@echo "  make deps-install    - Install host OCR system dependencies"
 	@echo "  make deps-uninstall  - Remove host OCR system dependencies"
 	@echo "  make setup           - Install host deps + all Python deps"
+	@echo "  make run             - Run the app on default port ($(APP_PORT))"
+	@echo "  make run-dev         - Run the app on dev port ($(DEV_PORT))"
+	@echo "  make run-share       - Run the app with Gradio share enabled"
+	@echo "  make docker-build    - Build the Docker image"
+	@echo "  make docker-run      - Run the Docker image"
+	@echo "  make docker-run-dev  - Run the Docker image interactively"
+	@echo "  make docker-shell    - Open a shell inside the Docker image"
 
 lock:
 	uv lock
@@ -56,11 +70,22 @@ deps-uninstall:
 setup: deps-install sync-all
 
 run:
-	uv run python src/app.py
+	uv run python src/app.py --port $(APP_PORT)
 
-#TODO: run dev is kinda redundant or overlapping with run, run-share is good but may need to be run main
 run-dev:
-	uv run python src/app.py --port 7699
+	uv run python src/app.py --port $(DEV_PORT)
 
 run-share:
-	uv run python src/app.py --port 7860 --share
+	uv run python src/app.py --port $(APP_PORT) --share
+
+docker-build:
+	docker build -t $(APP_NAME) .
+
+docker-run:
+	docker run --rm -p $(APP_PORT):$(APP_PORT) $(APP_NAME)
+
+docker-run-dev:
+	docker run --rm -it -p $(APP_PORT):$(APP_PORT) $(APP_NAME)
+
+docker-shell:
+	docker run --rm -it --entrypoint /bin/bash $(APP_NAME)

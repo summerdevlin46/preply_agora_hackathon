@@ -48,7 +48,13 @@ def main(
 ):
     """Launch the Mirror Gradio UI."""
     demo = build_ui()
-    demo.launch(server_port=port, share=share)
+    ###demo.launch(server_port=port, share=share)
+    demo.launch(server_name="0.0.0.0", server_port=port, share=share)
+###Sometimes Gradio inside a container needs to bind to 0.0.0.0, not just localhost.
+###
+###If you hit that, update your serve() launch call in app.py to include:
+###
+###demo.launch(server_name="0.0.0.0", server_port=port, share=share)
 
 
 if __name__ == "__main__":

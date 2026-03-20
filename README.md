@@ -15,6 +15,12 @@ Run:  uv run python app.py
 
 Test: uv pytest tests/test_app.py -v
 
+NEW VER:
+```bash
+make setup
+make run-dev
+```
+
 # Requirements
 
 uv
