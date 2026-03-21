@@ -1,4 +1,5 @@
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -39,3 +40,17 @@ class ExerciseGenerationResponse(BaseModel):
     topic: str
     avatar_prompts: dict[str, str]
     tasks: dict[str, list[TaskItem]]
+
+
+class HomeworkTranscriptMessage(BaseModel):
+    role: str = Field(min_length=1, max_length=50)
+    content: str = Field(min_length=1)
+    interrupted: bool = False
+
+
+class HomeworkCompletionRequest(BaseModel):
+    messages: list[HomeworkTranscriptMessage] = Field(min_length=1)
+
+
+class HomeworkCompletionResponse(BaseModel):
+    analysis: str

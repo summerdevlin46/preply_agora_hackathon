@@ -23,10 +23,7 @@ function buildSystemPrompt(instructions: string) {
     return DEFAULT_SYSTEM_PROMPT;
   }
 
-  return `${DEFAULT_SYSTEM_PROMPT}
-
-[TEAM INSTRUCTIONS]
-${normalizedInstructions}`;
+  return normalizedInstructions;
 }
 
 export async function POST(request: Request) {

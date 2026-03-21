@@ -16,6 +16,7 @@ type SessionResponse = {
 };
 
 type ChatPageClientProps = {
+  chatId?: string | null;
   defaultInstructions: string | null;
 };
 
@@ -55,11 +56,15 @@ function mapMessages(messages: Message[]): ChatMessage[] {
 }
 
 export default function ChatPageClient({
+  chatId,
   defaultInstructions,
 }: ChatPageClientProps) {
   const clientRef = useRef<AnamClient | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const chatSectionRef = useRef<HTMLElement | null>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const isFinalizingRef = useRef(false);
+  const hasFinalizedRef = useRef(false);
   const isExpired = defaultInstructions === null;
 
   const [draft, setDraft] = useState("");
@@ -80,6 +85,10 @@ export default function ChatPageClient({
     useState<AudioPermissionState>(AudioPermissionState.NOT_REQUESTED);
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
     return () => {
       const client = clientRef.current;
       cleanupRef.current?.();
@@ -91,6 +100,53 @@ export default function ChatPageClient({
       }
     };
   }, []);
+
+  const finalizeHomework = async () => {
+    if (!chatId || hasFinalizedRef.current || isFinalizingRef.current) {
+      return;
+    }
+
+    const transcriptMessages = messagesRef.current
+      .map((message) => ({
+        role: message.role,
+        content: message.content.trim(),
+        interrupted: Boolean(message.interrupted),
+      }))
+      .filter((message) => message.content);
+
+    if (!transcriptMessages.length) {
+      return;
+    }
+
+    isFinalizingRef.current = true;
+    setStatus("Wrapping up homework...");
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"}/api/chat/${encodeURIComponent(chatId)}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: transcriptMessages,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(await parseErrorResponse(response));
+      }
+
+      hasFinalizedRef.current = true;
+      setStatus("Session stopped. Homework summary saved.");
+    } catch (error) {
+      setStatus(`Session stopped, but wrap-up failed: ${getErrorMessage(error)}`);
+    } finally {
+      isFinalizingRef.current = false;
+    }
+  };
 
   const handleDisconnect = async () => {
     const client = clientRef.current;
@@ -108,13 +164,13 @@ export default function ChatPageClient({
 
     try {
       await client.stopStreaming();
-      setStatus("Session stopped.");
     } catch (error) {
       setStatus(getErrorMessage(error));
     } finally {
       setIsConnected(false);
       setIsMicMuted(false);
       setMicPermissionState(AudioPermissionState.NOT_REQUESTED);
+      await finalizeHomework();
     }
   };
 
@@ -151,7 +207,9 @@ export default function ChatPageClient({
       });
 
       const handleMessageHistoryUpdated = (nextMessages: Message[]) => {
-        setMessages(mapMessages(nextMessages));
+        const mappedMessages = mapMessages(nextMessages);
+        messagesRef.current = mappedMessages;
+        setMessages(mappedMessages);
       };
       const handleConnectionEstablished = () => {
         setIsConnected(true);
@@ -172,6 +230,7 @@ export default function ChatPageClient({
         setIsMicMuted(false);
         setMicPermissionState(AudioPermissionState.NOT_REQUESTED);
         setStatus(details ? `Connection closed: ${details}` : "Connection closed.");
+        void finalizeHomework();
       };
       const handleServerWarning = (message: string) => {
         setWarning(message);
@@ -257,7 +316,10 @@ export default function ChatPageClient({
       };
 
       clientRef.current = client;
+      hasFinalizedRef.current = false;
+      isFinalizingRef.current = false;
       setMessages([]);
+      messagesRef.current = [];
       setStatus("Starting session...");
       await client.streamToVideoElement(VIDEO_ELEMENT_ID);
     } catch (error) {

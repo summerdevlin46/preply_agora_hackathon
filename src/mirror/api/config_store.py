@@ -53,6 +53,15 @@ def initialize_config_db() -> None:
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS homework_wrapped (
+                chatId TEXT PRIMARY KEY,
+                transcript TEXT NOT NULL,
+                analysis TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
             INSERT INTO chat_config (
                 id, tutorId, studentId, anamPrompt, completionState
             )
@@ -70,24 +79,23 @@ def initialize_config_db() -> None:
         connection.commit()
 
 
-def save_chat_instructions(
-    chat_id: str,
-    anam_prompt: str,
-    tutor_id: str = "default-tutor",
-    student_id: str = "default-student",
-) -> None:
-    """
-    Upsert a generated avatar prompt for a given chat session.
-    The Next.js frontend fetches this via GET /api/chat/{chat_id}/instructions.
-    """
-    db_path = get_config_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+def save_chat_instructions(chat_id: str, anam_prompt: str) -> bool:
+    initialize_config_db()
 
-    with sqlite3.connect(db_path) as connection:
+    normalized_chat_id = chat_id.strip()
+    normalized_prompt = anam_prompt.strip()
+    if not normalized_chat_id or not normalized_prompt:
+        return False
+
+    with sqlite3.connect(get_config_db_path()) as connection:
         connection.execute(
             """
             INSERT INTO chat_config (
-                id, tutorId, studentId, anamPrompt, completionState
+                id,
+                tutorId,
+                studentId,
+                anamPrompt,
+                completionState
             )
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
@@ -95,14 +103,55 @@ def save_chat_instructions(
                 completionState = excluded.completionState
             """,
             (
-                chat_id,
-                tutor_id,
-                student_id,
-                anam_prompt,
+                normalized_chat_id,
+                "generated-tutor",
+                "generated-student",
+                normalized_prompt,
                 _COMPLETION_STATE_FALSE,
             ),
         )
         connection.commit()
+
+    return True
+
+
+def save_homework_wrap(
+    chat_id: str,
+    transcript: str,
+    analysis: str,
+) -> bool:
+    initialize_config_db()
+
+    normalized_chat_id = chat_id.strip()
+    if not normalized_chat_id:
+        return False
+
+    with sqlite3.connect(get_config_db_path()) as connection:
+        updated_rows = connection.execute(
+            """
+            UPDATE chat_config
+            SET completionState = ?
+            WHERE id = ?
+            """,
+            (_COMPLETION_STATE_TRUE, normalized_chat_id),
+        ).rowcount
+        connection.execute(
+            """
+            INSERT INTO homework_wrapped (
+                chatId,
+                transcript,
+                analysis
+            )
+            VALUES (?, ?, ?)
+            ON CONFLICT(chatId) DO UPDATE SET
+                transcript = excluded.transcript,
+                analysis = excluded.analysis
+            """,
+            (normalized_chat_id, transcript, analysis),
+        )
+        connection.commit()
+
+    return updated_rows > 0
 
 
 def get_chat_default_instructions() -> Optional[str]:

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 
 type ChatPageShellProps = {
+  chatId?: string | null;
   defaultInstructions: string | null;
 };
 

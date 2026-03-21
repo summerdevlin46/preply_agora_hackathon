@@ -5,9 +5,12 @@ from mirror.api.schemas import (
     ExerciseGenerationRequest,
     ExerciseGenerationResponse,
     HealthResponse,
+    HomeworkCompletionRequest,
+    HomeworkCompletionResponse,
     WorksheetParseResponse,
 )
 from mirror.api.service import (
+    complete_homework,
     generate_exercise,
     get_chat_instructions,
     get_default_chat_instructions,
@@ -36,6 +39,17 @@ def read_default_chat_instructions() -> ChatInstructionsResponse:
 )
 def read_chat_instructions(chat_id: str) -> ChatInstructionsResponse:
     return get_chat_instructions(chat_id)
+
+
+@router.post(
+    "/chat/{chat_id}/complete",
+    response_model=HomeworkCompletionResponse,
+)
+def complete_chat_homework(
+    chat_id: str,
+    payload: HomeworkCompletionRequest,
+) -> HomeworkCompletionResponse:
+    return complete_homework(chat_id, payload)
 
 
 @router.post("/worksheet/parse", response_model=WorksheetParseResponse)
