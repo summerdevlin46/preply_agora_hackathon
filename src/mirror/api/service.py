@@ -54,7 +54,8 @@ def generate_exercise(
             detail="Topic is required.",
         )
 
-    avatar_prompts, error = run_prompt_workflow(
+    # result is the full dict: {mode: prompt, ..., tasks: {mode: [...]}}
+    result, error = run_prompt_workflow(
         teacher_notes=payload.teacher_notes or topic,
         worksheet_json=payload.worksheet_json or {},
         feedback=payload.feedback or "",
@@ -66,14 +67,19 @@ def generate_exercise(
     if error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=error)
 
+    # Extract tasks before building avatar_prompts so they don't bleed in
+    tasks = result.pop("tasks", {})
+    avatar_prompts = {m: result[m] for m in MODES if m in result}
+
     # Save one chat_id per mode to SQLite
-    # Frontend navigates to /chat/{chat_id} per mode to launch Anam
+    # Frontend navigates to /chat/{chat_id} to launch Anam for that mode
     chat_ids = {}
+    base_id = payload.chat_id or str(uuid.uuid4())
     for mode in MODES:
         prompt = avatar_prompts.get(mode, "")
         if not prompt:
             continue
-        chat_id = f"{payload.chat_id or str(uuid.uuid4())}-{mode}"
+        chat_id = f"{base_id}-{mode}"
         save_chat_instructions(chat_id=chat_id, anam_prompt=prompt)
         chat_ids[mode] = chat_id
 
@@ -82,6 +88,7 @@ def generate_exercise(
         learner_name=payload.learner_name,
         topic=topic,
         avatar_prompts=avatar_prompts,
+        tasks=tasks,
     )
 
 
