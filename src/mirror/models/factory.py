@@ -1,12 +1,25 @@
 import logging
+from importlib import import_module
 from typing import Optional
 
 from mirror.config import get_env
-from mirror.models.huggingface_backend import generate_with_huggingface
-from mirror.models.local_oss_backend import generate_with_local_oss
-from mirror.models.openai_backend import generate_with_openai
 
 logger = logging.getLogger(__name__)
+
+
+def generate_with_openai(prompt: str, model: Optional[str] = None) -> str:
+    backend = import_module("mirror.models.openai_backend")
+    return backend.generate_with_openai(prompt=prompt, model=model)
+
+
+def generate_with_huggingface(prompt: str, model: Optional[str] = None) -> str:
+    backend = import_module("mirror.models.huggingface_backend")
+    return backend.generate_with_huggingface(prompt=prompt, model=model)
+
+
+def generate_with_local_oss(prompt: str, model: Optional[str] = None) -> str:
+    backend = import_module("mirror.models.local_oss_backend")
+    return backend.generate_with_local_oss(prompt=prompt, model=model)
 
 
 def generate_with_backend(prompt: str, model: Optional[str] = None) -> str:

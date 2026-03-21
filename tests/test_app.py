@@ -1,15 +1,28 @@
-from app import build_ui, parse_and_store_worksheet
+from fastapi.testclient import TestClient
+
+from app import app
 
 
-def test_build_ui_returns_blocks():
-    demo = build_ui()
-    assert demo is not None
+client = TestClient(app)
 
 
-def test_parse_and_store_worksheet_returns_preview_and_state(monkeypatch):
-    monkeypatch.setattr("app.parse_worksheet", lambda _: "parsed worksheet text")
+def test_root_returns_service_metadata():
+    response = client.get("/")
 
-    preview, state = parse_and_store_worksheet("fake.pdf")
+    assert response.status_code == 200
+    assert response.json()["health"] == "/api/health"
 
-    assert preview == "parsed worksheet text"
-    assert state == "parsed worksheet text"
+
+def test_healthcheck_returns_ok():
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_default_chat_instructions_returns_seeded_value():
+    response = client.get("/api/chat/default-instructions")
+
+    assert response.status_code == 200
+    assert "instructions" in response.json()
+    assert response.json()["instructions"]
