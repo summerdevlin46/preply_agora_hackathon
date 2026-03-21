@@ -1,6 +1,7 @@
 """
 tests/test_generation.py
 """
+import json
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -60,9 +61,10 @@ def test_cleanup_message_no_feedback_block_by_default():
 
 
 def _mock_response(prompts, tasks):
-    import json
+    """Mock for responses.create — sets output_text to JSON string."""
+    payload = json.dumps({**prompts, "tasks": tasks})
     mock = MagicMock()
-    mock.choices[0].message.content = json.dumps({**prompts, "tasks": tasks})
+    mock.output_text = payload
     return mock
 
 
@@ -83,7 +85,7 @@ def _valid_tasks():
 
 @patch("mirror.generation.cleanup.OpenAI")
 def test_run_cleanup_returns_all_modes(mock_openai):
-    mock_openai.return_value.chat.completions.create.return_value = (
+    mock_openai.return_value.responses.create.return_value = (
         _mock_response(_valid_prompts(), _valid_tasks())
     )
     result = run_cleanup(teacher_notes="B1 cooking", worksheet_json={"topic": "x"})
@@ -96,7 +98,7 @@ def test_run_cleanup_returns_all_modes(mock_openai):
 
 @patch("mirror.generation.cleanup.OpenAI")
 def test_run_cleanup_tasks_have_title_and_description(mock_openai):
-    mock_openai.return_value.chat.completions.create.return_value = (
+    mock_openai.return_value.responses.create.return_value = (
         _mock_response(_valid_prompts(), _valid_tasks())
     )
     result = run_cleanup(teacher_notes="notes", worksheet_json={})
@@ -108,31 +110,29 @@ def test_run_cleanup_tasks_have_title_and_description(mock_openai):
 
 @patch("mirror.generation.cleanup.OpenAI")
 def test_run_cleanup_raises_on_missing_mode(mock_openai):
-    import json
     incomplete = {m: "prompt" for m in MODES if m != "error_detective"}
     incomplete["tasks"] = _valid_tasks()
     mock = MagicMock()
-    mock.choices[0].message.content = json.dumps(incomplete)
-    mock_openai.return_value.chat.completions.create.return_value = mock
+    mock.output_text = json.dumps(incomplete)
+    mock_openai.return_value.responses.create.return_value = mock
     with pytest.raises(RuntimeError, match="missing modes"):
         run_cleanup(teacher_notes="notes", worksheet_json={})
 
 
 @patch("mirror.generation.cleanup.OpenAI")
 def test_run_cleanup_raises_on_wrong_task_count(mock_openai):
-    import json
     bad_tasks = _valid_tasks()
     bad_tasks["error_detective"] = [{"title": "Only one", "description": "task"}]
     mock = MagicMock()
-    mock.choices[0].message.content = json.dumps({**_valid_prompts(), "tasks": bad_tasks})
-    mock_openai.return_value.chat.completions.create.return_value = mock
+    mock.output_text = json.dumps({**_valid_prompts(), "tasks": bad_tasks})
+    mock_openai.return_value.responses.create.return_value = mock
     with pytest.raises(RuntimeError, match="3 tasks"):
         run_cleanup(teacher_notes="notes", worksheet_json={})
 
 
 @patch("mirror.generation.cleanup.OpenAI")
 def test_run_cleanup_feedback_included_in_message(mock_openai):
-    mock_openai.return_value.chat.completions.create.return_value = (
+    mock_openai.return_value.responses.create.return_value = (
         _mock_response(_valid_prompts(), _valid_tasks())
     )
     run_cleanup(
@@ -142,11 +142,10 @@ def test_run_cleanup_feedback_included_in_message(mock_openai):
         mode="error_detective",
         existing_prompts={m: "existing" for m in MODES},
     )
-    call_args = mock_openai.return_value.chat.completions.create.call_args
-    messages = call_args.kwargs["messages"]
-    user_msg = next(m["content"] for m in messages if m["role"] == "user")
-    assert "Make it harder" in user_msg
-    assert "error_detective" in user_msg
+    call_args = mock_openai.return_value.responses.create.call_args
+    input_text = call_args.kwargs.get("input") or call_args.args[0]
+    assert "Make it harder" in input_text
+    assert "error_detective" in input_text
 
 
 @pytest.mark.skip(reason="requires OPENAI_API_KEY")
