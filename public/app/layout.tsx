@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import StyledComponentsRegistry from "./StyledComponentsRegistry";
-import PreplyTeacherDashboard from "./PreplyTeacherDashboard"
-import PreplyAssignmentCreator from "./PreplyAssignmentCreator"
 
 export const metadata: Metadata = {
   title: "Mirror Frontend",
@@ -35,7 +33,7 @@ export default function RootLayout({
     </head>
     <body className="flex min-h-full flex-col">
     <StyledComponentsRegistry>
-      <PreplyTeacherDashboard></PreplyTeacherDashboard>
+      {children}
     </StyledComponentsRegistry>
     </body>
     </html>
