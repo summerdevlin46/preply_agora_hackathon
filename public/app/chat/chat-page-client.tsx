@@ -1,6 +1,7 @@
 "use client";
 
 import { SyntheticEvent, useEffect, useRef, useState } from "react";
+import styled, { keyframes } from "styled-components";
 import {
   AnamEvent,
   AudioPermissionState,
@@ -54,6 +55,341 @@ function mapMessages(messages: Message[]): ChatMessage[] {
     interrupted: message.interrupted,
   }));
 }
+
+/* -- keyframes -- */
+const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+/* -- styled components -- */
+const Page = styled.div`
+  font-family: inherit;
+  background: #fff;
+  min-height: 100vh;
+  color: #111827;
+`;
+
+const Container = styled.div`
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 24px;
+  align-items: start;
+`;
+
+const Card = styled.section`
+  background: #fff;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  overflow: hidden;
+  animation: ${fadeUp} 0.3s ease;
+`;
+
+const VideoWrap = styled.div`
+  position: relative;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 14px;
+`;
+
+const Video = styled.video`
+  aspect-ratio: 4 / 5;
+  width: 100%;
+  background: #000;
+  display: block;
+  object-fit: cover;
+`;
+
+const VideoOverlay = styled.div`
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 10;
+`;
+
+const TopOverlay = styled(VideoOverlay)`
+  top: 12px;
+`;
+
+const BottomOverlay = styled(VideoOverlay)`
+  bottom: 12px;
+`;
+
+const VideoPill = styled.span<{ $variant?: "warning" }>`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: ${(props) => (props.$variant === "warning" ? "#fff7c1" : "rgba(0,0,0,0.5)")};
+  color: ${(props) => (props.$variant === "warning" ? "#000" : "#fff")};
+`;
+
+const ChatSection = styled.section`
+  background: #fff;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 24px;
+  animation: ${fadeUp} 0.3s ease;
+`;
+
+const ChatHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+`;
+
+const ChatLabel = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin: 0 0 4px;
+`;
+
+const ChatTitle = styled.h2`
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  margin: 0;
+  color: #111827;
+`;
+
+const ModePill = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,0,0,.05);
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
+const MessagesWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 32rem;
+  min-height: 24rem;
+  overflow-y: auto;
+  background: #FAFAFA;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 14px;
+`;
+
+const EmptyMessages = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20rem;
+  border: 2px dashed #dad9de;
+  border-radius: 12px;
+  background: #fff;
+  padding: 24px;
+  text-align: center;
+  font-family: "PreplyInter", sans-serif;
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.6;
+`;
+
+const MessageBubble = styled.article<{ $isUser: boolean }>`
+  max-width: 88%;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-family: "PreplyInter", sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-left: ${(props) => (props.$isUser ? "auto" : "0")};
+  background: ${(props) => (props.$isUser ? "#000" : "#fff7c1")};
+  color: ${(props) => (props.$isUser ? "#fff" : "#000")};
+  border: ${(props) => (props.$isUser ? "none" : "2px solid rgba(0,0,0,.08)")};
+`;
+
+const MessageRole = styled.p`
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  margin: 0 0 4px;
+`;
+
+const MessageContent = styled.p`
+  margin: 0;
+  white-space: pre-wrap;
+`;
+
+const InterruptedTag = styled.p`
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.5;
+  margin: 4px 0 0;
+`;
+
+const SpeechHint = styled.div`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 13px;
+  color: #000;
+  line-height: 1.6;
+  background: #fff7c1;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 14px;
+`;
+
+const ChatForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+`;
+
+const Textarea = styled.textarea`
+  width: 100%;
+  min-height: 80px;
+  border: 2px solid #dad9de;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #374151;
+  font-family: "PreplyInter", sans-serif;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: #000;
+  }
+`;
+
+const SendBtn = styled.button`
+  width: 100%;
+  background: #ff7aac;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "PreplyInter", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
+const BottomBar = styled.div`
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+`;
+
+const BottomBarInner = styled.div`
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 10px 16px;
+`;
+
+const StartBtn = styled.button`
+  background: #ff7aac;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "PreplyInter", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
+const StopBtn = styled.button`
+  background: #fff;
+  color: #000;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "PreplyInter", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: #000;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+`;
+
+const ModeToggle = styled.div`
+  display: inline-flex;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  background: #fff;
+  padding: 3px;
+`;
+
+const ModeBtn = styled.button<{ $active: boolean }>`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: ${(props) => (props.$active ? "#ff7aac" : "transparent")};
+  color: #000;
+`;
 
 export default function ChatPageClient({
   chatId,
@@ -401,169 +737,129 @@ export default function ChatPageClient({
     }
   };
 
+  const micLabel =
+    micPermissionState === AudioPermissionState.DENIED
+      ? "Mic blocked"
+      : isMicMuted
+        ? "Mic muted"
+        : micPermissionState === AudioPermissionState.GRANTED
+          ? "Mic live"
+          : micPermissionState === AudioPermissionState.PENDING
+            ? "Waiting for mic"
+            : "Mic idle";
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f1dd_0%,#eadfcf_40%,#cfc7bb_100%)] px-4 py-6 text-stone-950 sm:px-6 sm:py-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-28">
-        <section className="rounded-[2rem] border border-stone-900/10 bg-[#fffaf2]/80 p-5 shadow-[0_28px_110px_rgba(72,51,33,0.12)] backdrop-blur sm:p-6">
-          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)] lg:items-start">
-            <div className="min-w-0">
-              <div className="relative overflow-hidden rounded-[2rem] bg-stone-950 p-3 shadow-[0_30px_90px_rgba(28,25,23,0.28)]">
-                <div className="absolute inset-x-4 top-4 z-10 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-black/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-stone-100 backdrop-blur">
-                    {isConnected ? "Live session" : "Ready"}
-                  </span>
-                  <span className="rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-stone-100 backdrop-blur">
-                    {status}
-                  </span>
-                  {warning ? (
-                    <span className="rounded-full bg-amber-300/85 px-3 py-1 text-xs font-medium text-stone-950">
-                      {warning}
-                    </span>
-                  ) : null}
-                </div>
+    <Page>
+      <Container>
+        <Grid>
+          {/* Video */}
+          <Card>
+            <VideoWrap>
+              <TopOverlay>
+                <VideoPill>{isConnected ? "Live session" : "Ready"}</VideoPill>
+                <VideoPill>{status}</VideoPill>
+                {warning ? <VideoPill $variant="warning">{warning}</VideoPill> : null}
+              </TopOverlay>
 
-                <video
-                  autoPlay
-                  className="aspect-[4/5] w-full rounded-[1.5rem] bg-stone-900 object-cover"
-                  id={VIDEO_ELEMENT_ID}
-                  muted={false}
-                  playsInline
-                />
+              <Video
+                autoPlay
+                id={VIDEO_ELEMENT_ID}
+                muted={false}
+                playsInline
+              />
 
-                <div className="absolute inset-x-4 bottom-4 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-white/88 px-3 py-1 text-xs font-medium text-stone-800">
-                    {micPermissionState === AudioPermissionState.DENIED
-                      ? "Mic blocked"
-                      : isMicMuted
-                        ? "Mic muted"
-                        : micPermissionState === AudioPermissionState.GRANTED
-                          ? "Mic live"
-                          : micPermissionState === AudioPermissionState.PENDING
-                            ? "Waiting for mic"
-                            : "Mic idle"}
-                  </span>
-                </div>
+              <BottomOverlay>
+                <VideoPill>{micLabel}</VideoPill>
+              </BottomOverlay>
+            </VideoWrap>
+          </Card>
+
+          {/* Chat */}
+          <ChatSection ref={chatSectionRef}>
+            <ChatHeader>
+              <div>
+                <ChatLabel>Chat</ChatLabel>
+                <ChatTitle>Conversation</ChatTitle>
               </div>
-            </div>
+              <ModePill>
+                {interactionMode === "message" ? "Chat mode" : "Speech mode"}
+              </ModePill>
+            </ChatHeader>
 
-            <section
-              className="min-w-0 rounded-[2rem] border border-stone-900/10 bg-white/88 p-5 shadow-[0_24px_70px_rgba(87,70,45,0.12)] sm:p-6"
-              ref={chatSectionRef}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-400">
-                    Chat
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-                    Conversation
-                  </h2>
-                </div>
-                <p className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  {interactionMode === "message" ? "Chat mode" : "Speech mode"}
-                </p>
-              </div>
-
-              <div className="mt-5 flex max-h-[32rem] min-h-[24rem] flex-col gap-3 overflow-y-auto rounded-[1.5rem] bg-stone-100/90 p-4">
-                {messages.length ? (
-                  messages.map((message) => (
-                    <article
-                      className={`max-w-[88%] rounded-[1.5rem] px-4 py-3 text-sm leading-6 shadow-sm ${
-                        message.role === "user"
-                          ? "ml-auto bg-stone-950 text-stone-50"
-                          : "bg-[#f6ebcf] text-stone-900"
-                      }`}
-                      key={message.id}
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
-                        {message.role === "user" ? "You" : "Tutor"}
-                      </p>
-                      <p className="mt-2 whitespace-pre-wrap">
-                        {message.content || "…"}
-                      </p>
-                      {message.interrupted ? (
-                        <p className="mt-2 text-[11px] uppercase tracking-[0.18em] opacity-60">
-                          Interrupted
-                        </p>
-                      ) : null}
-                    </article>
-                  ))
-                ) : (
-                  <div className="flex min-h-[20rem] items-center justify-center rounded-[1.25rem] border border-dashed border-stone-300 bg-white/70 p-6 text-center text-sm leading-6 text-stone-500">
-                    {interactionMode === "message"
-                      ? "Start the session and send a message here."
-                      : "Start the session and speak to begin. Your conversation will appear here."}
-                  </div>
-                )}
-              </div>
-
-              {interactionMode === "message" ? (
-                <form className="mt-4 flex flex-col gap-3" onSubmit={handleSend}>
-                  <textarea
-                    className="min-h-28 rounded-[1.5rem] border border-stone-300 bg-stone-50 px-4 py-3 outline-none transition focus:border-amber-500"
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Type your message to the tutor."
-                    value={draft}
-                  />
-                  <button
-                    className="rounded-full bg-stone-950 px-5 py-3 font-semibold text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
-                    disabled={!isConnected || isSending}
-                    type="submit"
-                  >
-                    {isSending ? "Sending..." : "Send message"}
-                  </button>
-                </form>
+            <MessagesWrap>
+              {messages.length ? (
+                messages.map((message) => (
+                  <MessageBubble $isUser={message.role === "user"} key={message.id}>
+                    <MessageRole>
+                      {message.role === "user" ? "You" : "Tutor"}
+                    </MessageRole>
+                    <MessageContent>{message.content || "…"}</MessageContent>
+                    {message.interrupted ? (
+                      <InterruptedTag>Interrupted</InterruptedTag>
+                    ) : null}
+                  </MessageBubble>
+                ))
               ) : (
-                <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-stone-700">
-                  Speech mode is active. Speak naturally to the tutor and switch to
-                  Chat whenever you want to type.
-                </div>
+                <EmptyMessages>
+                  {interactionMode === "message"
+                    ? "Start the session and send a message here."
+                    : "Start the session and speak to begin. Your conversation will appear here."}
+                </EmptyMessages>
               )}
-            </section>
-          </div>
-        </section>
-      </div>
+            </MessagesWrap>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
-        <div className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-3 rounded-full border border-stone-900/10 bg-[#fffaf2]/92 px-4 py-3 shadow-[0_24px_90px_rgba(33,24,14,0.18)] backdrop-blur">
-          <button
-            className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+            {interactionMode === "message" ? (
+              <ChatForm onSubmit={handleSend}>
+                <Textarea
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder="Type your message to the tutor."
+                  value={draft}
+                />
+                <SendBtn disabled={!isConnected || isSending} type="submit">
+                  {isSending ? "Sending..." : "Send message"}
+                </SendBtn>
+              </ChatForm>
+            ) : (
+              <SpeechHint>
+                Speech mode is active. Speak naturally to the tutor and switch to
+                Chat whenever you want to type.
+              </SpeechHint>
+            )}
+          </ChatSection>
+        </Grid>
+      </Container>
+
+      {/* Bottom bar */}
+      <BottomBar>
+        <BottomBarInner>
+          <StartBtn
             disabled={isExpired || isConnecting || isConnected}
             onClick={handleConnect}
             type="button"
           >
             {isConnecting ? "Starting..." : "Start session"}
-          </button>
-          <button
-            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:bg-stone-100 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
+          </StartBtn>
+          <StopBtn
             disabled={!isConnected}
             onClick={() => void handleDisconnect()}
             type="button"
           >
             Stop session
-          </button>
-          <div className="inline-flex rounded-full border border-stone-300 bg-white p-1">
-            {(["speak", "message"] as const).map((mode) => {
-              const isActive = interactionMode === mode;
-
-              return (
-                <button
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    isActive
-                      ? "bg-amber-300 text-stone-950"
-                      : "text-stone-600 hover:bg-stone-100"
-                  }`}
-                  key={mode}
-                  onClick={() => handleInteractionModeChange(mode)}
-                  type="button"
-                >
-                  {mode === "speak" ? "Speech" : "Chat"}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </main>
+          </StopBtn>
+          <ModeToggle>
+            {(["speak", "message"] as const).map((mode) => (
+              <ModeBtn
+                $active={interactionMode === mode}
+                key={mode}
+                onClick={() => handleInteractionModeChange(mode)}
+                type="button"
+              >
+                {mode === "speak" ? "Speech" : "Chat"}
+              </ModeBtn>
+            ))}
+          </ModeToggle>
+        </BottomBarInner>
+      </BottomBar>
+    </Page>
   );
 }
