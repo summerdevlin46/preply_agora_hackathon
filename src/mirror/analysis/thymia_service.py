@@ -56,6 +56,7 @@ async def _stream_to_helios(wav_path: str) -> HeliosResult:
 
     sentinel = SentinelClient(
         user_label="mirror-session-analysis",
+        policies=[],
         biomarkers=["helios"],
         sample_rate=16000,
     )
