@@ -2,10 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
+import { getTeacherReport } from "@/lib/chat-instructions";
 import {
-  BookOpen, Mic, PenLine, FileText, FolderOpen, Image,
+  BookOpen, Mic, PenLine, FileText, FolderOpen, ImageIcon,
   FilePen, X, Sparkles, ClipboardList, FileSpreadsheet, Check, ArrowLeft,
-  Lightbulb, RefreshCw
+  Lightbulb, RefreshCw, ChevronDown, ChevronUp
 } from "lucide-react";
 
 const ASSIGNMENT_TYPES = [
@@ -157,6 +158,7 @@ const HOW_STEPS = [
 ];
 
 const ACCEPT_TYPES = ".pdf,.jpg,.jpeg,.png,.docx,.doc";
+const DEMO_CHAT_ID = "chat_7f3k9m2q";
 
 /* -- keyframes -- */
 const spin = keyframes`
@@ -918,6 +920,157 @@ const ModalClose = styled.button`
   }
 `;
 
+const ReportTrigger = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 2px solid #dad9de;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: #f5f3ff;
+    border-color: #c4b5fd;
+  }
+`;
+
+const ReportModalPanel = styled(ModalPanel)`
+  width: min(920px, calc(100vw - 32px));
+  max-height: min(88vh, 920px);
+`;
+
+const ReportSummary = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+`;
+
+const ReportSummaryCard = styled.div`
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fafafa;
+`;
+
+const ReportSummaryLabel = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
+const ReportSummaryValue = styled.p`
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+`;
+
+const FoldableSection = styled.section`
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+`;
+
+const FoldableButton = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: ${(props) => (props.$open ? "2px solid #dad9de" : "none")};
+  background: ${(props) => (props.$open ? "#fafafa" : "#fff")};
+  cursor: pointer;
+  text-align: left;
+`;
+
+const FoldableTitle = styled.span`
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+`;
+
+const FoldableMeta = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  color: #9ca3af;
+`;
+
+const FoldableContent = styled.div`
+  padding: 0;
+`;
+
+const ReportTableWrap = styled.div`
+  overflow-x: auto;
+`;
+
+const ReportTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+`;
+
+const ReportHeadCell = styled.th`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const ReportCell = styled.td`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  color: #374151;
+  padding: 12px 16px;
+  vertical-align: top;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: pre-wrap;
+  line-height: 1.6;
+`;
+
+const ReportCellMuted = styled(ReportCell)`
+  color: #9ca3af;
+`;
+
+const ReportEmptyState = styled.div`
+  padding: 20px 16px;
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  color: #9ca3af;
+`;
+
+const ReportFeedback = styled.div`
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid ${(props) => (props.$error ? "#fecaca" : "#ddd6fe")};
+  background: ${(props) => (props.$error ? "#fef2f2" : "#f5f3ff")};
+  color: ${(props) => (props.$error ? "#991b1b" : "#5b21b6")};
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  line-height: 1.6;
+`;
+
 const HowCard = styled.section`
   border: 2px solid #dad9de;
   border-radius: 12px;
@@ -999,6 +1152,129 @@ const HiddenInput = styled.input`
 
 const Wrapper = styled.div``
 
+function parseTranscriptRows(transcript) {
+  return transcript
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const match = line.match(/^(\d+)\.\s+([A-Z]+):\s*(.*)$/);
+      if (!match) {
+        return {
+          id: index + 1,
+          line: index + 1,
+          speaker: "Note",
+          content: line,
+        };
+      }
+
+      return {
+        id: `${match[1]}-${match[2]}`,
+        line: Number(match[1]),
+        speaker: match[2],
+        content: match[3] || "",
+      };
+    });
+}
+
+function parseOverviewRows(analysis) {
+  const lines = analysis
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const rows = [];
+  let struggleIndex = 1;
+
+  lines.forEach((line, index) => {
+    if (line.startsWith("Overall outcome:")) {
+      rows.push({ id: `overall-${index}`, label: "Overall outcome", details: line.replace("Overall outcome:", "").trim() });
+      return;
+    }
+
+    if (line.startsWith("Strengths:")) {
+      rows.push({ id: `strengths-${index}`, label: "Strengths", details: line.replace("Strengths:", "").trim() });
+      return;
+    }
+
+    if (line.startsWith("Recommended follow-up:")) {
+      rows.push({ id: `follow-up-${index}`, label: "Recommended follow-up", details: line.replace("Recommended follow-up:", "").trim() });
+      return;
+    }
+
+    if (line.startsWith("- ")) {
+      rows.push({ id: `struggle-${index}`, label: `Struggle ${struggleIndex}`, details: line.replace(/^-+\s*/, "").trim() });
+      struggleIndex += 1;
+      return;
+    }
+
+    rows.push({ id: `note-${index}`, label: "Notes", details: line });
+  });
+
+  return rows;
+}
+
+function stringifyReportValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "n/a";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "n/a";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function buildStudentAnalysisRows(studentAnalysis) {
+  const rows = [
+    {
+      id: "confidence",
+      metric: "Confidence score",
+      value: studentAnalysis?.confidence_score ?? 0,
+      notes: "Final Helios confidence score.",
+    },
+    {
+      id: "fluency",
+      metric: "Fluency score",
+      value: studentAnalysis?.fluency_score ?? 0,
+      notes: "Final Helios fluency score.",
+    },
+    {
+      id: "turn-count",
+      metric: "Analyzed turns",
+      value: Array.isArray(studentAnalysis?.raw_turns) ? studentAnalysis.raw_turns.length : 0,
+      notes: "Number of biomarker result payloads stored for the session.",
+    },
+  ];
+
+  if (Array.isArray(studentAnalysis?.raw_turns)) {
+    studentAnalysis.raw_turns.forEach((turn, index) => {
+      const scores = turn && typeof turn === "object" && !Array.isArray(turn) ? turn.scores : undefined;
+      rows.push({
+        id: `turn-${index + 1}`,
+        metric: `Turn ${index + 1}`,
+        value: stringifyReportValue(scores && Object.keys(scores).length ? scores : turn),
+        notes: "Raw Thymia payload snapshot.",
+      });
+    });
+  }
+
+  return rows;
+}
+
 /* -- component -- */
 export default function PreplyTeacherDashboard() {
   const [selectedType, setSelectedType] = useState("speaking");
@@ -1011,6 +1287,15 @@ export default function PreplyTeacherDashboard() {
   const [launchCopied, setLaunchCopied] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimized, setOptimized] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportData, setReportData] = useState(null);
+  const [openSections, setOpenSections] = useState({
+    transcript: true,
+    overview: true,
+    studentAnalysis: true,
+  });
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -1044,7 +1329,7 @@ export default function PreplyTeacherDashboard() {
 
   const getFileIcon = (name) => {
     if (name.endsWith(".pdf")) return <FileText size={16} />;
-    if (name.match(/\.(jpg|jpeg|png)$/i)) return <Image size={16} />;
+    if (name.match(/\.(jpg|jpeg|png)$/i)) return <ImageIcon size={16} />;
     return <FilePen size={16} />;
   };
 
@@ -1099,7 +1384,7 @@ export default function PreplyTeacherDashboard() {
   };
 
   const handleLaunchSession = async () => {
-    const launchLink = "http://localhost:3000/chat/chat_7f3k9m2q";
+    const launchLink = `http://localhost:3000/chat/${DEMO_CHAT_ID}`;
 
     try {
       await navigator.clipboard.writeText(launchLink);
@@ -1109,6 +1394,37 @@ export default function PreplyTeacherDashboard() {
       // fail silently if clipboard access is unavailable
     }
   };
+
+  const toggleSection = (section) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  const handleOpenReport = async () => {
+    setIsReportOpen(true);
+    setIsReportLoading(true);
+    setReportError("");
+
+    try {
+      const report = await getTeacherReport(DEMO_CHAT_ID);
+      setReportData(report);
+    } catch (err) {
+      setReportData(null);
+      setReportError(err instanceof Error ? err.message : "Unable to load report.");
+    } finally {
+      setIsReportLoading(false);
+    }
+  };
+
+  const handleCloseReport = () => {
+    setIsReportOpen(false);
+  };
+
+  const transcriptRows = reportData ? parseTranscriptRows(reportData.transcript) : [];
+  const overviewRows = reportData ? parseOverviewRows(reportData.homework_analysis) : [];
+  const studentAnalysisRows = reportData ? buildStudentAnalysisRows(reportData.student_analysis) : [];
 
   return (
     <Page>
@@ -1364,12 +1680,12 @@ export default function PreplyTeacherDashboard() {
               </div>
 
               {/* Lesson report */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", background: "#FAFAFA", borderRadius: 12, border: "2px solid #dad9de" }}>
+              <ReportTrigger onClick={handleOpenReport}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <FileSpreadsheet size={18} style={{ color: "#000" }} />
                   <div>
                     <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, fontWeight: 600, color: "#000", margin: 0 }}>Lesson Report</p>
-                    <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 11, color: "#9ca3af", margin: 0 }}>Sent to you after the session completes</p>
+                    <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 11, color: "#9ca3af", margin: 0 }}>Click here to see how your student did</p>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -1377,9 +1693,165 @@ export default function PreplyTeacherDashboard() {
                     <span key={tag} style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 9, fontWeight: 600, padding: "3px 8px", background: "rgba(0,0,0,.05)", color: "#000", borderRadius: 10 }}>{tag}</span>
                   ))}
                 </div>
-              </div>
+              </ReportTrigger>
             </div>
           </ModalPanel>
+        </ModalOverlay>
+      )}
+      {generated && isReportOpen && (
+        <ModalOverlay onClick={handleCloseReport}>
+          <ReportModalPanel onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+              <div>
+                <h3 style={{ fontFamily: "inherit", fontSize: 20, fontWeight: 500, letterSpacing: "0.04em", color: "#000", margin: 0 }}>Lesson Report</h3>
+                <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>Transcript, overview, and student analysis for chat `{DEMO_CHAT_ID}`.</p>
+              </div>
+              <ModalClose onClick={handleCloseReport}><X size={18} /></ModalClose>
+            </div>
+
+            <div style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {isReportLoading && (
+                <ReportFeedback>
+                  <SpinnerWrap><Spinner /> Loading report...</SpinnerWrap>
+                </ReportFeedback>
+              )}
+
+              {!isReportLoading && reportError && (
+                <ReportFeedback $error>{reportError}</ReportFeedback>
+              )}
+
+              {!isReportLoading && reportData && (
+                <>
+                  <ReportSummary>
+                    <ReportSummaryCard>
+                      <ReportSummaryLabel>Chat ID</ReportSummaryLabel>
+                      <ReportSummaryValue style={{ fontSize: 14, lineHeight: 1.45 }}>{reportData.chat_id}</ReportSummaryValue>
+                    </ReportSummaryCard>
+                    <ReportSummaryCard>
+                      <ReportSummaryLabel>Confidence</ReportSummaryLabel>
+                      <ReportSummaryValue>{reportData.student_analysis.confidence_score.toFixed(3)}</ReportSummaryValue>
+                    </ReportSummaryCard>
+                    <ReportSummaryCard>
+                      <ReportSummaryLabel>Fluency</ReportSummaryLabel>
+                      <ReportSummaryValue>{reportData.student_analysis.fluency_score.toFixed(3)}</ReportSummaryValue>
+                    </ReportSummaryCard>
+                  </ReportSummary>
+
+                  <FoldableSection>
+                    <FoldableButton $open={openSections.transcript} onClick={() => toggleSection("transcript")}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <FoldableTitle>Transcript</FoldableTitle>
+                        <FoldableMeta>{transcriptRows.length} rows</FoldableMeta>
+                      </div>
+                      {openSections.transcript ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </FoldableButton>
+                    {openSections.transcript && (
+                      <FoldableContent>
+                        {transcriptRows.length ? (
+                          <ReportTableWrap>
+                            <ReportTable>
+                              <thead>
+                                <tr>
+                                  <ReportHeadCell>Line</ReportHeadCell>
+                                  <ReportHeadCell>Speaker</ReportHeadCell>
+                                  <ReportHeadCell>Content</ReportHeadCell>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {transcriptRows.map((row) => (
+                                  <tr key={row.id}>
+                                    <ReportCellMuted>{row.line}</ReportCellMuted>
+                                    <ReportCell>{row.speaker}</ReportCell>
+                                    <ReportCell>{row.content || "n/a"}</ReportCell>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </ReportTable>
+                          </ReportTableWrap>
+                        ) : (
+                          <ReportEmptyState>No transcript saved for this session.</ReportEmptyState>
+                        )}
+                      </FoldableContent>
+                    )}
+                  </FoldableSection>
+
+                  <FoldableSection>
+                    <FoldableButton $open={openSections.overview} onClick={() => toggleSection("overview")}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <FoldableTitle>Overview</FoldableTitle>
+                        <FoldableMeta>{overviewRows.length} rows</FoldableMeta>
+                      </div>
+                      {openSections.overview ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </FoldableButton>
+                    {openSections.overview && (
+                      <FoldableContent>
+                        {overviewRows.length ? (
+                          <ReportTableWrap>
+                            <ReportTable>
+                              <thead>
+                                <tr>
+                                  <ReportHeadCell>Category</ReportHeadCell>
+                                  <ReportHeadCell>Details</ReportHeadCell>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {overviewRows.map((row) => (
+                                  <tr key={row.id}>
+                                    <ReportCell>{row.label}</ReportCell>
+                                    <ReportCell>{row.details || "n/a"}</ReportCell>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </ReportTable>
+                          </ReportTableWrap>
+                        ) : (
+                          <ReportEmptyState>No homework analysis saved for this session.</ReportEmptyState>
+                        )}
+                      </FoldableContent>
+                    )}
+                  </FoldableSection>
+
+                  <FoldableSection>
+                    <FoldableButton $open={openSections.studentAnalysis} onClick={() => toggleSection("studentAnalysis")}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <FoldableTitle>Student Analysis</FoldableTitle>
+                        <FoldableMeta>{studentAnalysisRows.length} rows</FoldableMeta>
+                      </div>
+                      {openSections.studentAnalysis ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </FoldableButton>
+                    {openSections.studentAnalysis && (
+                      <FoldableContent>
+                        {studentAnalysisRows.length ? (
+                          <ReportTableWrap>
+                            <ReportTable>
+                              <thead>
+                                <tr>
+                                  <ReportHeadCell>Metric</ReportHeadCell>
+                                  <ReportHeadCell>Value</ReportHeadCell>
+                                  <ReportHeadCell>Notes</ReportHeadCell>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {studentAnalysisRows.map((row) => (
+                                  <tr key={row.id}>
+                                    <ReportCell>{row.metric}</ReportCell>
+                                    <ReportCell>{stringifyReportValue(row.value)}</ReportCell>
+                                    <ReportCell>{row.notes}</ReportCell>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </ReportTable>
+                          </ReportTableWrap>
+                        ) : (
+                          <ReportEmptyState>No student analysis saved for this session.</ReportEmptyState>
+                        )}
+                      </FoldableContent>
+                    )}
+                  </FoldableSection>
+                </>
+              )}
+            </div>
+          </ReportModalPanel>
         </ModalOverlay>
       )}
     </Page>

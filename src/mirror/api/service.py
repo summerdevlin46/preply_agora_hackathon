@@ -9,11 +9,13 @@ from fastapi import HTTPException, UploadFile, status
 from mirror.api.config_store import (
     get_chat_default_instructions,
     get_chat_instructions_by_id,
+    get_chat_session_by_id,
     save_chat_instructions,
     save_homework_wrap,
 )
 from mirror.api.schemas import (
     ChatInstructionsResponse,
+    ChatSessionResponse,
     ExerciseGenerationRequest,
     ExerciseGenerationResponse,
     HomeworkCompletionRequest,
@@ -140,6 +142,13 @@ _TIPS = {
     "grammar":  "Listen to the full sentence before deciding if it sounds right.",
 }
 
+_MODE_TIPS = {
+    "avatar_conversation": _TIPS["speaking"],
+    "vocabulary_challenge": _TIPS["vocab"],
+    "read_aloud_review": _TIPS["writing"],
+    "error_detective": _TIPS["grammar"],
+}
+
 
 async def parse_uploaded_worksheet(file: UploadFile) -> WorksheetParseResponse:
     from mirror.ocr.vision_parser import parse_worksheet_to_json
@@ -203,7 +212,12 @@ def generate_exercise(
         if not prompt:
             continue
         chat_id = f"{base_id}-{mode}"
-        save_chat_instructions(chat_id=chat_id, anam_prompt=prompt)
+        save_chat_instructions(
+            chat_id=chat_id,
+            anam_prompt=prompt,
+            tasks=tasks.get(mode, []),
+            tip=_MODE_TIPS.get(mode, ""),
+        )
         chat_ids[mode] = chat_id
 
     return ExerciseGenerationResponse(
@@ -223,6 +237,14 @@ def get_chat_instructions(chat_id: str) -> ChatInstructionsResponse:
     return ChatInstructionsResponse(
         instructions=get_chat_instructions_by_id(chat_id)
     )
+
+
+def get_chat_session(chat_id: str) -> ChatSessionResponse:
+    session = get_chat_session_by_id(chat_id)
+    if session is None:
+        return ChatSessionResponse(instructions=None)
+
+    return ChatSessionResponse(**session)
 
 
 def complete_homework(

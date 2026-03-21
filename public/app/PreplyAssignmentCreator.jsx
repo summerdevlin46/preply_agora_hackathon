@@ -605,7 +605,7 @@ Keep it concise (3–5 sentences max). Return ONLY the improved context text —
                           <span style={S.reportIcon}>📊</span>
                           <div>
                             <p style={S.reportTitle}>Lesson Report</p>
-                            <p style={S.reportSub}>Sent to you after the session completes</p>
+                            <p style={S.reportSub}>Click here to see how your student did</p>
                           </div>
                         </div>
                         <div style={S.reportTags}>

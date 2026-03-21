@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/report", tags=["report"])
 
 
+def _is_missing_config_error(exc: Exception) -> bool:
+    message = str(exc)
+    return (
+        "THYMIA_API_KEY" in message
+        or "OPENAI_API_KEY" in message
+        or "Missing required environment variable" in message
+    )
+
+
 class TeacherReportResponse(BaseModel):
     chat_id: str
     confidence_score: float
@@ -26,6 +35,7 @@ class TeacherReportResponse(BaseModel):
 
 
 @router.post("/analyze", response_model=TeacherReportResponse)
+@router.post("/analyse", response_model=TeacherReportResponse)
 async def analyze_session(
     chat_id: str = Form(...),
     transcript: str = Form(default=""),
@@ -36,8 +46,20 @@ async def analyze_session(
     Runs Thymia Helios and saves scores to session_analysis table.
     Fires independently from complete_homework — both run after session ends.
     """
-    from mirror.analysis.thymia_service import analyze_session as run_analysis
     from mirror.api.config_store import save_session_analysis, get_teacher_report
+
+    try:
+        from mirror.analysis.thymia_service import analyze_session as run_analysis
+    except ModuleNotFoundError as exc:
+        missing_module = exc.name or "unknown module"
+        logger.error("Optional report dependency is missing: %s", missing_module)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Report analysis is unavailable because an optional dependency is "
+                f"missing: {missing_module}. Install the audio dependencies first."
+            ),
+        ) from exc
 
     suffix = Path(wav_file.filename or "session.wav").suffix or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -51,6 +73,18 @@ async def analyze_session(
             wav_path=str(tmp_path),
             transcript=transcript,
         )
+    except (ValueError, RuntimeError) as exc:
+        if _is_missing_config_error(exc):
+            logger.error("Report analysis configuration is missing: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Report analysis is unavailable: {exc}",
+            ) from exc
+        logger.error("Thymia analysis failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Thymia analysis failed: {exc}",
+        ) from exc
     except Exception as exc:
         logger.error("Thymia analysis failed: %s", exc)
         raise HTTPException(

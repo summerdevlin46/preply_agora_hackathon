@@ -46,6 +46,8 @@ def initialize_config_db() -> None:
                 tutorId TEXT,
                 studentId TEXT,
                 anamPrompt TEXT NOT NULL,
+                studentTasks TEXT NOT NULL DEFAULT '[]',
+                studentTip TEXT NOT NULL DEFAULT '',
                 completionState TEXT NOT NULL CHECK (
                     completionState IN ('true', 'false')
                 )
@@ -87,10 +89,38 @@ def initialize_config_db() -> None:
                 _COMPLETION_STATE_FALSE,
             ),
         )
+        _ensure_chat_config_columns(connection)
         connection.commit()
 
 
-def save_chat_instructions(chat_id: str, anam_prompt: str) -> bool:
+def _ensure_chat_config_columns(connection: sqlite3.Connection) -> None:
+    existing_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(chat_config)")
+    }
+
+    if "studentTasks" not in existing_columns:
+        connection.execute(
+            """
+            ALTER TABLE chat_config
+            ADD COLUMN studentTasks TEXT NOT NULL DEFAULT '[]'
+            """
+        )
+
+    if "studentTip" not in existing_columns:
+        connection.execute(
+            """
+            ALTER TABLE chat_config
+            ADD COLUMN studentTip TEXT NOT NULL DEFAULT ''
+            """
+        )
+
+
+def save_chat_instructions(
+    chat_id: str,
+    anam_prompt: str,
+    tasks: Optional[list[dict[str, str]]] = None,
+    tip: str = "",
+) -> bool:
     initialize_config_db()
 
     normalized_chat_id = chat_id.strip()
@@ -98,15 +128,21 @@ def save_chat_instructions(chat_id: str, anam_prompt: str) -> bool:
     if not normalized_chat_id or not normalized_prompt:
         return False
 
+    normalized_tasks = json.dumps(tasks or [])
+    normalized_tip = tip.strip()
+
     with sqlite3.connect(get_config_db_path()) as connection:
         connection.execute(
             """
             INSERT INTO chat_config (
-                id, tutorId, studentId, anamPrompt, completionState
+                id, tutorId, studentId, anamPrompt, studentTasks, studentTip,
+                completionState
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 anamPrompt = excluded.anamPrompt,
+                studentTasks = excluded.studentTasks,
+                studentTip = excluded.studentTip,
                 completionState = excluded.completionState
             """,
             (
@@ -114,6 +150,8 @@ def save_chat_instructions(chat_id: str, anam_prompt: str) -> bool:
                 "generated-tutor",
                 "generated-student",
                 normalized_prompt,
+                normalized_tasks,
+                normalized_tip,
                 _COMPLETION_STATE_FALSE,
             ),
         )
@@ -262,3 +300,52 @@ def get_chat_instructions_by_id(chat_id: str) -> Optional[str]:
         return None
 
     return str(row[0]).strip() or DEFAULT_CHAT_INSTRUCTIONS
+
+
+def get_chat_session_by_id(chat_id: str) -> Optional[dict]:
+    initialize_config_db()
+
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+
+    with sqlite3.connect(get_config_db_path()) as connection:
+        row = connection.execute(
+            """
+            SELECT anamPrompt, studentTasks, studentTip, completionState
+            FROM chat_config
+            WHERE id = ?
+            """,
+            (normalized,),
+        ).fetchone()
+
+    if not row:
+        return None
+
+    if str(row[3]).strip().lower() == _COMPLETION_STATE_TRUE:
+        return {
+            "instructions": None,
+            "tasks": [],
+            "tip": str(row[2] or "").strip(),
+        }
+
+    try:
+        parsed_tasks = json.loads(row[1] or "[]")
+    except json.JSONDecodeError:
+        parsed_tasks = []
+
+    tasks = []
+    for item in parsed_tasks:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title", "")).strip()
+        description = str(item.get("description", "")).strip()
+        if title and description:
+            tasks.append({"title": title, "description": description})
+
+    instructions = str(row[0]).strip()
+    return {
+        "instructions": instructions or DEFAULT_CHAT_INSTRUCTIONS,
+        "tasks": tasks,
+        "tip": str(row[2] or "").strip(),
+    }

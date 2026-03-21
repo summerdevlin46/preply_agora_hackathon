@@ -1,6 +1,9 @@
 import importlib
 import sqlite3
 import types
+import builtins
+import sys
+import json
 
 from fastapi.testclient import TestClient
 
@@ -188,3 +191,96 @@ def test_complete_homework_falls_back_when_openai_is_unavailable(
     assert "1. USER: I am cook dinner now" in wrapped[0]
     assert "simulated OpenAI outage" in wrapped[1]
     assert completion_state == ("true",)
+
+
+def test_report_analyze_returns_503_when_audio_dependency_is_missing(monkeypatch):
+    original_import = builtins.__import__
+
+    def failing_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "thymia_sentinel":
+            raise ModuleNotFoundError(
+                "No module named 'thymia_sentinel'",
+                name="thymia_sentinel",
+            )
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+
+    response = client.post(
+        "/api/report/analyze",
+        files={"wav_file": ("session.wav", b"RIFF", "audio/wav")},
+        data={"chat_id": "chat-missing-dep", "transcript": "hello"},
+    )
+
+    assert response.status_code == 503
+    assert "optional dependency is missing" in response.json()["detail"]
+    assert "thymia_sentinel" in response.json()["detail"]
+
+
+def test_report_analyze_returns_503_when_thymia_api_key_is_missing(monkeypatch):
+    async def fake_run_analysis(chat_id: str, wav_path: str, transcript: str = ""):
+        raise ValueError("THYMIA_API_KEY environment variable or api_key parameter required")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "mirror.analysis.thymia_service",
+        types.SimpleNamespace(analyze_session=fake_run_analysis),
+    )
+
+    response = client.post(
+        "/api/report/analyze",
+        files={"wav_file": ("session.wav", b"RIFF", "audio/wav")},
+        data={"chat_id": "chat-missing-thymia-key", "transcript": "hello"},
+    )
+
+    assert response.status_code == 503
+    assert "THYMIA_API_KEY" in response.json()["detail"]
+
+
+def test_connect_sentinel_sends_config_event(monkeypatch):
+    thymia_service = importlib.import_module("mirror.analysis.thymia_service")
+
+    sent_messages = []
+
+    class FakeWebSocket:
+        async def send(self, message):
+            sent_messages.append(message)
+
+    async def fake_connect(url, max_size=None):
+        assert url == "wss://ws.thymia.ai"
+        return FakeWebSocket()
+
+    created_tasks = []
+
+    def fake_create_task(coro):
+        created_tasks.append(coro)
+
+        class FakeTask:
+            def cancel(self):
+                return None
+
+        return FakeTask()
+
+    monkeypatch.setattr(thymia_service.websockets, "connect", fake_connect)
+    monkeypatch.setattr(thymia_service.asyncio, "create_task", fake_create_task)
+
+    sentinel = thymia_service.SentinelClient(
+        api_key="test-thymia-key",
+        user_label="mirror-session-analysis",
+        biomarkers=["helios"],
+        sample_rate=16000,
+    )
+
+    import asyncio
+    asyncio.run(thymia_service._connect_sentinel(sentinel))
+
+    assert sentinel.connected is True
+    assert sent_messages
+    first_message = json.loads(sent_messages[0])
+    assert first_message["type"] == "CONFIG"
+    assert first_message["api_key"] == "test-thymia-key"
+    assert first_message["audio_config"]["sample_rate"] == 16000
+    assert created_tasks
+
+    for coro in created_tasks:
+        coro.close()

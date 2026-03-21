@@ -22,6 +22,25 @@ class TaskItem(BaseModel):
     description: str
 
 
+class ChatSessionResponse(BaseModel):
+    instructions: Optional[str]
+    tasks: list[TaskItem] = Field(default_factory=list)
+    tip: str = Field(default="")
+
+
+class StudentAnalysisResponse(BaseModel):
+    confidence_score: float = Field(default=0.0)
+    fluency_score: float = Field(default=0.0)
+    raw_turns: list[dict] = Field(default_factory=list)
+
+
+class TeacherReportResponse(BaseModel):
+    chat_id: str
+    transcript: str = Field(default="")
+    homework_analysis: str = Field(default="")
+    student_analysis: StudentAnalysisResponse
+
+
 class ExerciseGenerationRequest(BaseModel):
     learner_name: str = Field(default="", max_length=200)
     topic: str = Field(min_length=1, max_length=300)

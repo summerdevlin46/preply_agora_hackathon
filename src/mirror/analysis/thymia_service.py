@@ -8,7 +8,8 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
-from pathlib import Path
+
+import websockets
 
 from thymia_sentinel import SentinelClient
 
@@ -47,6 +48,51 @@ def _load_wav_pcm16(path: str) -> bytes:
         return wf.readframes(wf.getnframes())
 
 
+async def _connect_sentinel(sentinel: SentinelClient) -> None:
+    """
+    Work around a protocol bug in thymia-sentinel 1.1.0.
+
+    The packaged client sends the initial config without `type="CONFIG"`,
+    which causes the server to reject the next AUDIO_HEADER frame.
+    """
+    if not sentinel.api_key:
+        raise ValueError(
+            "THYMIA_API_KEY environment variable or api_key parameter required"
+        )
+
+    sentinel._websocket = await websockets.connect(sentinel.server_url, max_size=None)
+
+    progress_enabled = len(sentinel._progress_handlers) > 0
+    config = {
+        "type": "CONFIG",
+        "api_key": sentinel.api_key,
+        "language": sentinel.language,
+        "biomarkers": sentinel.biomarkers,
+        "policies": sentinel.policies,
+        "audio_config": {
+            "sample_rate": sentinel.sample_rate,
+            "format": "pcm16",
+            "channels": 1,
+        },
+        "progress_updates": {
+            "enabled": progress_enabled,
+            "interval_seconds": sentinel.progress_updates_frequency,
+        },
+    }
+    if sentinel.user_label is not None:
+        config["user_label"] = sentinel.user_label
+    if sentinel.date_of_birth is not None:
+        config["date_of_birth"] = sentinel.date_of_birth
+    if sentinel.birth_sex is not None:
+        config["birth_sex"] = sentinel.birth_sex
+    if sentinel.custom_policies is not None:
+        config["custom_policies"] = sentinel.custom_policies
+
+    await sentinel._websocket.send(json.dumps(config))
+    sentinel._receive_task = asyncio.create_task(sentinel._receive_server_events())
+    sentinel._connected = True
+
+
 async def _stream_to_helios(wav_path: str) -> HeliosResult:
     pcm_data = _load_wav_pcm16(wav_path)
 
@@ -73,7 +119,7 @@ async def _stream_to_helios(wav_path: str) -> HeliosResult:
             final_fluency = scores["fluency"]
 
     logger.info("Connecting to Thymia Sentinel...")
-    await sentinel.connect()
+    await _connect_sentinel(sentinel)
 
     chunk_duration_ms = 100
     bytes_per_chunk = 2 * 16000 * chunk_duration_ms // 1000
