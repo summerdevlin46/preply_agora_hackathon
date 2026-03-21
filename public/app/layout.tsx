@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import StyledComponentsRegistry from "./StyledComponentsRegistry";
+import PreplyTopBar from "./PreplyTopBar";
 
 export const metadata: Metadata = {
   title: "Mirror Frontend",
@@ -33,6 +34,7 @@ export default function RootLayout({
     </head>
     <body className="flex min-h-full flex-col">
     <StyledComponentsRegistry>
+      <PreplyTopBar />
       {children}
     </StyledComponentsRegistry>
     </body>
