@@ -18,3 +18,11 @@ def test_healthcheck_returns_ok():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_default_chat_instructions_returns_seeded_value():
+    response = client.get("/api/chat/default-instructions")
+
+    assert response.status_code == 200
+    assert "instructions" in response.json()
+    assert response.json()["instructions"]

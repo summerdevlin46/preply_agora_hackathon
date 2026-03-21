@@ -1,8 +1,14 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class ChatInstructionsResponse(BaseModel):
+    instructions: Optional[str]
 
 
 class WorksheetParseResponse(BaseModel):

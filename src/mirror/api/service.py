@@ -3,7 +3,12 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 
+from mirror.api.config_store import (
+    get_chat_default_instructions,
+    get_chat_instructions_by_id,
+)
 from mirror.api.schemas import (
+    ChatInstructionsResponse,
     ExerciseGenerationRequest,
     ExerciseGenerationResponse,
     WorksheetParseResponse,
@@ -94,4 +99,16 @@ def generate_exercise(
         learner_name=learner_name,
         topic=topic,
         exercise=exercise,
+    )
+
+
+def get_default_chat_instructions() -> ChatInstructionsResponse:
+    return ChatInstructionsResponse(
+        instructions=get_chat_default_instructions(),
+    )
+
+
+def get_chat_instructions(chat_id: str) -> ChatInstructionsResponse:
+    return ChatInstructionsResponse(
+        instructions=get_chat_instructions_by_id(chat_id),
     )
