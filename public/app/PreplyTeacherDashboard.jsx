@@ -658,8 +658,8 @@ const SpinnerWrap = styled.span`
 const Spinner = styled.span`
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid #fff;
+  border: 2px solid rgba(0,0,0,.1);
+  border-top: 2px solid #000;
   border-radius: 50%;
   display: inline-block;
   animation: ${spin} 0.7s linear infinite;
@@ -989,6 +989,45 @@ const ReportTag = styled.span`
   background: #EDE9FE;
   color: #5B21B6;
   border-radius: 10px;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: ${fadeUp} 0.2s ease;
+`;
+
+const ModalPanel = styled.div`
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 12px;
+  width: 580px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: none;
+`;
+
+const ModalClose = styled.button`
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  transition: all 0.15s;
+
+  &:hover {
+    color: #000;
+    background: #f3f4f6;
+  }
 `;
 
 const HowCard = styled.section`
@@ -1424,111 +1463,100 @@ export default function PreplyTeacherDashboard() {
                 </GenerateHint>
               )}
 
-              {/* Output */}
-              {(isGenerating || generated) && (
-                <OutputCard $borderColor={activeType?.border}>
-                  <OutputHeader>
-                    <OutputHeaderLeft>
-                      <OutputDot style={{ background: activeType?.color ?? "#7C3AED" }} />
-                      <OutputTitle>Avatar Session</OutputTitle>
-                      {generated && (
-                        <ModePill style={{ background: activeType?.bg, color: activeType?.color }}>
-                          {activeType?.label}
-                        </ModePill>
-                      )}
-                    </OutputHeaderLeft>
-                    {generated && (
-                      <CopyBtn onClick={handleCopy}>
-                        {copied ? "Copied!" : "Copy prompt"}
-                      </CopyBtn>
-                    )}
-                  </OutputHeader>
-
-                  {isGenerating && (
-                    <Skeleton>
-                      <SkeletonLine $width="70%" />
-                      <SkeletonLine $width="90%" />
-                      <SkeletonLine $width="60%" />
-                      <SkeletonLine $width="80%" />
-                      <SkeletonLine $width="50%" />
-                    </Skeleton>
-                  )}
-
-                  {generated && (
-                    <>
-                      {/* Avatar banner */}
-                      <AvatarBanner style={{ background: `linear-gradient(135deg, ${activeType?.color} 0%, ${activeType?.color}bb 100%)` }}>
-                        <AvatarCircle>
-                          <activeType.icon size={20} />
-                        </AvatarCircle>
-                        <AvatarInfo>
-                          <AvatarName>{generated.avatar_name} — AI {activeType?.avatarRole}</AvatarName>
-                          <AvatarSub>Live voice + text chat · {activeType?.sublabel}</AvatarSub>
-                        </AvatarInfo>
-                        <LaunchBtn>Launch Session</LaunchBtn>
-                      </AvatarBanner>
-
-                      <RichBody>
-                        <RichTitle>{generated.title}</RichTitle>
-                        <RichObjective><strong>Objective:</strong> {generated.objective}</RichObjective>
-
-                        {/* System prompt box */}
-                        <PromptBox $borderColor={activeType?.border}>
-                          <PromptBoxHeader>
-                            <Sparkles size={14} style={{ color: activeType?.color }} />
-                            <PromptBoxLabel style={{ color: activeType?.color }}>Avatar System Prompt</PromptBoxLabel>
-                            <PromptBoxBadge style={{ background: activeType?.color }}>Sent to Anam</PromptBoxBadge>
-                          </PromptBoxHeader>
-                          <PromptBoxText>{generated.avatar_prompt}</PromptBoxText>
-                        </PromptBox>
-
-                        {/* Tasks */}
-                        <TasksHeader>
-                          <TasksLabel>Student Tasks</TasksLabel>
-                          <TasksCount>{generated.tasks.length} activities</TasksCount>
-                        </TasksHeader>
-                        <TasksList>
-                          {generated.tasks.map((task, i) => (
-                            <TaskCard key={i}>
-                              <TaskIndex style={{ background: activeType?.color }}>{i + 1}</TaskIndex>
-                              <TaskBody>
-                                <TaskLabel>{task.label}</TaskLabel>
-                                <TaskContent>{task.content}</TaskContent>
-                              </TaskBody>
-                            </TaskCard>
-                          ))}
-                        </TasksList>
-
-                        {/* Tip */}
-                        <TipRow>
-                          <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                          <TipText>{generated.tip}</TipText>
-                        </TipRow>
-
-                        {/* Lesson report */}
-                        <ReportRow>
-                          <ReportLeft>
-                            <FileSpreadsheet size={18} style={{ color: "#5B21B6" }} />
-                            <div>
-                              <ReportTitle>Lesson Report</ReportTitle>
-                              <ReportSub>Sent to you after the session completes</ReportSub>
-                            </div>
-                          </ReportLeft>
-                          <ReportTags>
-                            {["Errors flagged", "Words used", "Tasks completed"].map((tag) => (
-                              <ReportTag key={tag}>{tag}</ReportTag>
-                            ))}
-                          </ReportTags>
-                        </ReportRow>
-                      </RichBody>
-                    </>
-                  )}
-                </OutputCard>
-              )}
             </MainCol>
           </Grid>
         </Container>
       </Wrapper>
+
+      {/* Output modal */}
+      {generated && (
+        <ModalOverlay onClick={() => setGenerated(null)}>
+          <ModalPanel onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "2px solid rgba(0,0,0,.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <activeType.icon size={18} style={{ color: "#000" }} />
+                <span style={{ fontFamily: "inherit", fontSize: 15, fontWeight: 600, letterSpacing: "0.04em", color: "#000" }}>Avatar Session</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <CopyBtn onClick={handleCopy}>
+                  {copied ? "Copied!" : "Copy prompt"}
+                </CopyBtn>
+                <ModalClose onClick={() => setGenerated(null)}>
+                  <X size={18} />
+                </ModalClose>
+              </div>
+            </div>
+
+            {/* Avatar banner */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", background: "#fff7c1", borderBottom: "2px solid rgba(0,0,0,.08)" }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                <activeType.icon size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 600, color: "#000", letterSpacing: "0.02em" }}>{generated.avatar_name} — AI {activeType?.avatarRole}</div>
+                <div style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#4B5563", marginTop: 1 }}>Live voice + text chat · {activeType?.sublabel}</div>
+              </div>
+              <LaunchBtn style={{ background: "#ff7aac", border: "2px solid #000", color: "#000", borderRadius: 12, padding: "8px 16px", fontSize: 12 }}>Launch Session</LaunchBtn>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "24px" }}>
+              <h3 style={{ fontFamily: "inherit", fontSize: 18, fontWeight: 500, letterSpacing: "0.04em", margin: "0 0 6px", color: "#000" }}>{generated.title}</h3>
+              <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, color: "#4B5563", lineHeight: 1.65, margin: "0 0 20px" }}><strong style={{ color: "#000" }}>Objective:</strong> {generated.objective}</p>
+
+              {/* System prompt box */}
+              <div style={{ background: "#FAFAFA", border: "2px solid #dad9de", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                  <Sparkles size={14} style={{ color: "#000" }} />
+                  <span style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, fontWeight: 600, color: "#000", flex: 1 }}>Avatar System Prompt</span>
+                  <span style={{ fontFamily: "'PreplyInter', sans-serif", color: "#000", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10, background: "#ff7aac" }}>Sent to Anam</span>
+                </div>
+                <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#4B5563", lineHeight: 1.65, margin: 0, fontStyle: "italic", whiteSpace: "pre-wrap" }}>{generated.avatar_prompt}</p>
+              </div>
+
+              {/* Tasks */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, fontWeight: 600, color: "#000" }}>Student Tasks</span>
+                <span style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#9ca3af" }}>{generated.tasks.length} activities</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {generated.tasks.map((task, i) => (
+                  <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", border: "2px solid #dad9de", borderRadius: 12, padding: "11px 14px", background: "#fff" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#000", color: "#fff", fontSize: 9, fontWeight: 700, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>{i + 1}</div>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, fontWeight: 600, color: "#000", display: "block", marginBottom: 3 }}>{task.label}</span>
+                      <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#4B5563", lineHeight: 1.65, margin: 0 }}>{task.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tip */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", background: "#fff7c1", borderRadius: 12, border: "2px solid #000", marginBottom: 12 }}>
+                <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1, color: "#000" }} />
+                <span style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#000", lineHeight: 1.55 }}>{generated.tip}</span>
+              </div>
+
+              {/* Lesson report */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", background: "#FAFAFA", borderRadius: 12, border: "2px solid #dad9de" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <FileSpreadsheet size={18} style={{ color: "#000" }} />
+                  <div>
+                    <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, fontWeight: 600, color: "#000", margin: 0 }}>Lesson Report</p>
+                    <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 11, color: "#9ca3af", margin: 0 }}>Sent to you after the session completes</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {["Errors flagged", "Words used", "Tasks completed"].map((tag) => (
+                    <span key={tag} style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 9, fontWeight: 600, padding: "3px 8px", background: "rgba(0,0,0,.05)", color: "#000", borderRadius: 10 }}>{tag}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ModalPanel>
+        </ModalOverlay>
+      )}
     </Page>
   );
 }
