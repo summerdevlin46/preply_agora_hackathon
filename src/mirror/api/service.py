@@ -93,7 +93,7 @@ def _generate_homework_analysis(transcript: str) -> str:
 
     client = OpenAI(api_key=get_env("OPENAI_API_KEY"))
     response = client.responses.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-5"),
+        model=os.getenv("OPENAI_MODEL", "gpt-5"),  # try with light gpt-4o just in case
         input=_HOMEWORK_ANALYSIS_PROMPT.format(transcript=transcript),
     )
     analysis = response.output_text.strip()

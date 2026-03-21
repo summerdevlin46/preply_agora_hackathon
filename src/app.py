@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mirror.api.config_store import initialize_config_db
 from mirror.api.routes import router as mirror_router
 from mirror.api.settings import get_cors_origins
+from mirror.api.report_routes import router as report_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,6 +37,9 @@ app.add_middleware(
 )
 
 app.include_router(mirror_router)
+
+# report crap
+app.include_router(report_router)
 
 
 @app.get("/", tags=["meta"])

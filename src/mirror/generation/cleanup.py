@@ -85,6 +85,20 @@ No preamble, no markdown fences, no explanation outside the JSON.
 """.strip()
 
 
+def _extract_text(response) -> str:
+    if hasattr(response, "output_text") and response.output_text:
+        return response.output_text
+    try:
+        return "".join(
+            block.text
+            for item in response.output
+            for block in item.content
+            if block.type == "output_text"
+        )
+    except Exception:
+        return str(response)
+
+
 def build_cleanup_user_message(
     teacher_notes: str,
     worksheet_json: dict,
@@ -116,9 +130,6 @@ def run_cleanup(
     """
     Returns a dict with keys: avatar_conversation, vocabulary_challenge,
     read_aloud_review, error_detective, tasks.
-
-    Pass feedback + mode for single-mode regeneration.
-    Pass existing_prompts so unchanged modes are preserved if needed.
     """
     client = OpenAI(api_key=get_env("OPENAI_API_KEY"))
 
@@ -129,22 +140,27 @@ def run_cleanup(
         mode=mode,
     )
 
+    full_input = f"{CLEANUP_SYSTEM_PROMPT}\n\n{user_message}"
+
     logger.info(
         "Running cleanup model (model=%s, feedback=%s, mode=%s)",
         CLEANUP_MODEL, bool(feedback), mode,
     )
 
-    response = client.chat.completions.create(
+    response = client.responses.create(
         model=CLEANUP_MODEL,
-        messages=[
-            {"role": "system", "content": CLEANUP_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        max_tokens=2500,
-        temperature=0.4,
+        input=full_input,
+        max_output_tokens=2500,
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw = _extract_text(response).strip()
+
+    # Strip markdown fences if model adds them anyway
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
 
     try:
         parsed = json.loads(raw)

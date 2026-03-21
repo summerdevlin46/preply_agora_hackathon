@@ -11,3 +11,10 @@ CREATE TABLE homework_wrapped (
     transcript TEXT NOT NULL,
     analysis TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS session_analysis (
+    chatId TEXT PRIMARY KEY,
+    confidence_score REAL NOT NULL DEFAULT 0.0,
+    fluency_score REAL NOT NULL DEFAULT 0.0,
+    raw_turns TEXT NOT NULL DEFAULT '[]'
+);

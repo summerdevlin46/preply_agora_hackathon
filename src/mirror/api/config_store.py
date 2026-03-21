@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from pathlib import Path
@@ -62,6 +63,16 @@ def initialize_config_db() -> None:
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS session_analysis (
+                chatId TEXT PRIMARY KEY,
+                confidence_score REAL NOT NULL DEFAULT 0.0,
+                fluency_score REAL NOT NULL DEFAULT 0.0,
+                raw_turns TEXT NOT NULL DEFAULT '[]'
+            )
+            """
+        )
+        connection.execute(
+            """
             INSERT INTO chat_config (
                 id, tutorId, studentId, anamPrompt, completionState
             )
@@ -91,11 +102,7 @@ def save_chat_instructions(chat_id: str, anam_prompt: str) -> bool:
         connection.execute(
             """
             INSERT INTO chat_config (
-                id,
-                tutorId,
-                studentId,
-                anamPrompt,
-                completionState
+                id, tutorId, studentId, anamPrompt, completionState
             )
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
@@ -137,21 +144,84 @@ def save_homework_wrap(
         ).rowcount
         connection.execute(
             """
-            INSERT INTO homework_wrapped (
-                chatId,
-                transcript,
-                analysis
-            )
+            INSERT INTO homework_wrapped (chatId, transcript, analysis)
             VALUES (?, ?, ?)
             ON CONFLICT(chatId) DO UPDATE SET
                 transcript = excluded.transcript,
-                analysis = excluded.analysis
+                analysis   = excluded.analysis
             """,
             (normalized_chat_id, transcript, analysis),
         )
         connection.commit()
 
     return updated_rows > 0
+
+
+def save_session_analysis(
+    chat_id: str,
+    confidence_score: float,
+    fluency_score: float,
+    raw_turns: list,
+) -> None:
+    """Save Thymia Helios scores for a completed session."""
+    initialize_config_db()
+
+    with sqlite3.connect(get_config_db_path()) as connection:
+        connection.execute(
+            """
+            INSERT INTO session_analysis (
+                chatId, confidence_score, fluency_score, raw_turns
+            )
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(chatId) DO UPDATE SET
+                confidence_score = excluded.confidence_score,
+                fluency_score    = excluded.fluency_score,
+                raw_turns        = excluded.raw_turns
+            """,
+            (
+                chat_id.strip(),
+                confidence_score,
+                fluency_score,
+                json.dumps(raw_turns),
+            ),
+        )
+        connection.commit()
+
+
+def get_teacher_report(chat_id: str) -> Optional[dict]:
+    """
+    Merges homework_wrapped (transcript + GPT analysis)
+    with session_analysis (Thymia scores) into a single teacher report.
+    Returns None if neither exists.
+    """
+    initialize_config_db()
+    normalized = chat_id.strip()
+
+    with sqlite3.connect(get_config_db_path()) as connection:
+        hw = connection.execute(
+            "SELECT transcript, analysis FROM homework_wrapped WHERE chatId = ?",
+            (normalized,),
+        ).fetchone()
+
+        sa = connection.execute(
+            """
+            SELECT confidence_score, fluency_score, raw_turns
+            FROM session_analysis WHERE chatId = ?
+            """,
+            (normalized,),
+        ).fetchone()
+
+    if not hw and not sa:
+        return None
+
+    return {
+        "chat_id":          normalized,
+        "transcript":       hw[0] if hw else "",
+        "analysis":         hw[1] if hw else "",
+        "confidence_score": sa[0] if sa else 0.0,
+        "fluency_score":    sa[1] if sa else 0.0,
+        "raw_turns":        json.loads(sa[2]) if sa else [],
+    }
 
 
 def get_chat_default_instructions() -> Optional[str]:
