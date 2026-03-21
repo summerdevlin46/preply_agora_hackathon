@@ -1,11 +1,12 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class ExerciseState(TypedDict, total=False):
     learner_name: str
     topic: str
-    worksheet_text: str
-    reference_excerpt: str
+    teacher_prompt: str
+    worksheet_json: dict[str, Any]
+    reference_block: str
     style_summary: str
     prompt: str
     output: str

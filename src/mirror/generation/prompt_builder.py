@@ -10,7 +10,9 @@ def build_exercise_prompt(
     return f"""
 You are an expert ESL/EFL teacher and materials designer.
 
-Your task is to create a NEW worksheet-style exercise for the learner named {learner_name}.
+Create a NEW follow-up practice exercise for the learner named {learner_name}.
+
+This exercise should reinforce the same pedagogical intent as the tutor session.
 
 You must use the reference material only as inspiration for:
 - difficulty
@@ -26,7 +28,10 @@ You must NOT:
 - output explanations about your reasoning
 
 You must:
-- create an exercise on this new target topic: {topic}
+- create an exercise on this target topic: {topic}
+- use the reference worksheet only for structure, tone, and task design
+- do not keep the old worksheet topic unless explicitly requested
+- do not copy the same vocabulary, examples, or sentences from the reference
 - follow the teacher notes carefully
 - keep the output teacher-ready and classroom-usable
 - include clear instructions
@@ -58,8 +63,6 @@ Answer Key:
 1. ...
 2. ...
 3. ...
-
-Here is a good example of the kind of output format and quality expected:
 
 Example topic: Past Simple
 Example teacher notes: Make it A2 level, controlled practice, with 5 gap-fill items.
