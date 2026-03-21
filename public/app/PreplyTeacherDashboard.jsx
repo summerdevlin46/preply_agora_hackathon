@@ -1008,6 +1008,7 @@ export default function PreplyTeacherDashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [launchCopied, setLaunchCopied] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimized, setOptimized] = useState(false);
   const fileInputRef = useRef(null);
@@ -1095,6 +1096,18 @@ export default function PreplyTeacherDashboard() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLaunchSession = async () => {
+    const launchLink = "http://localhost:3000/chat/chat_7f3k9m2q";
+
+    try {
+      await navigator.clipboard.writeText(launchLink);
+      setLaunchCopied(true);
+      setTimeout(() => setLaunchCopied(false), 2000);
+    } catch (err) {
+      // fail silently if clipboard access is unavailable
+    }
   };
 
   return (
@@ -1303,8 +1316,13 @@ export default function PreplyTeacherDashboard() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 600, color: "#000", letterSpacing: "0.02em" }}>{generated.avatar_name} — AI {activeType?.avatarRole}</div>
                 <div style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#4B5563", marginTop: 1 }}>Live voice + text chat · {activeType?.sublabel}</div>
+                {launchCopied && (
+                  <div style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, fontWeight: 600, color: "#059669", marginTop: 6 }}>
+                    Copied link to clipboard
+                  </div>
+                )}
               </div>
-              <LaunchBtn style={{ background: "#ff7aac", border: "2px solid #000", color: "#000", borderRadius: 12, padding: "8px 16px", fontSize: 12 }}>Launch Session</LaunchBtn>
+              <LaunchBtn onClick={handleLaunchSession} style={{ background: "#ff7aac", border: "2px solid #000", color: "#000", borderRadius: 12, padding: "8px 16px", fontSize: 12 }}>Launch Session</LaunchBtn>
             </div>
 
             {/* Body */}

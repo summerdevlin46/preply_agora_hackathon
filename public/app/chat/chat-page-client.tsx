@@ -8,6 +8,7 @@ import {
   createClient,
   type AnamClient,
   type Message,
+  type MessageStreamEvent,
 } from "@anam-ai/js-sdk";
 
 const VIDEO_ELEMENT_ID = "anam-persona-video";
@@ -54,6 +55,48 @@ function mapMessages(messages: Message[]): ChatMessage[] {
     role: message.role,
     interrupted: message.interrupted,
   }));
+}
+
+function applyMessageStreamEvent(
+  currentMessages: ChatMessage[],
+  event: MessageStreamEvent,
+): ChatMessage[] {
+  if (event.role === "user") {
+    return [
+      ...currentMessages,
+      {
+        id: event.id,
+        content: event.content,
+        role: event.role,
+      },
+    ];
+  }
+
+  const existingMessageIndex = currentMessages.findIndex(
+    (message) => message.id === event.id,
+  );
+
+  if (existingMessageIndex === -1) {
+    return [
+      ...currentMessages,
+      {
+        id: event.id,
+        content: event.content,
+        role: event.role,
+        interrupted: event.interrupted,
+      },
+    ];
+  }
+
+  return currentMessages.map((message, index) =>
+    index === existingMessageIndex
+      ? {
+          ...message,
+          content: message.content + event.content,
+          interrupted: Boolean(message.interrupted || event.interrupted),
+        }
+      : message,
+  );
 }
 
 /* -- keyframes -- */
@@ -547,6 +590,18 @@ export default function ChatPageClient({
         messagesRef.current = mappedMessages;
         setMessages(mappedMessages);
       };
+      const handleMessageStreamEventReceived = (
+        messageEvent: MessageStreamEvent,
+      ) => {
+        setMessages((currentMessages) => {
+          const nextMessages = applyMessageStreamEvent(
+            currentMessages,
+            messageEvent,
+          );
+          messagesRef.current = nextMessages;
+          return nextMessages;
+        });
+      };
       const handleConnectionEstablished = () => {
         setIsConnected(true);
         if (interactionMode === "message") {
@@ -601,6 +656,10 @@ export default function ChatPageClient({
         handleMessageHistoryUpdated,
       );
       client.addListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        handleMessageStreamEventReceived,
+      );
+      client.addListener(
         AnamEvent.CONNECTION_ESTABLISHED,
         handleConnectionEstablished,
       );
@@ -625,6 +684,10 @@ export default function ChatPageClient({
         client.removeListener(
           AnamEvent.MESSAGE_HISTORY_UPDATED,
           handleMessageHistoryUpdated,
+        );
+        client.removeListener(
+          AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+          handleMessageStreamEventReceived,
         );
         client.removeListener(
           AnamEvent.CONNECTION_ESTABLISHED,
