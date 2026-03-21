@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, SyntheticEvent, useState } from "react";
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
@@ -53,7 +53,9 @@ export default function Home() {
     setGenerateStatus("");
   };
 
-  const handleParse = async (event: FormEvent<HTMLFormElement>) => {
+  const handleParse = async (
+    event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+  ) => {
     event.preventDefault();
 
     if (!selectedFile) {
@@ -88,7 +90,9 @@ export default function Home() {
     }
   };
 
-  const handleGenerate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleGenerate = async (
+    event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+  ) => {
     event.preventDefault();
 
     if (!worksheetText.trim()) {

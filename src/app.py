@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from mirror.api.config_store import initialize_config_db
 from mirror.api.routes import router as mirror_router
 from mirror.api.settings import get_cors_origins
 
@@ -15,6 +16,7 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    initialize_config_db()
     yield
 
 
