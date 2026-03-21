@@ -54,11 +54,7 @@ def initialize_config_db() -> None:
         connection.execute(
             """
             INSERT INTO chat_config (
-                id,
-                tutorId,
-                studentId,
-                anamPrompt,
-                completionState
+                id, tutorId, studentId, anamPrompt, completionState
             )
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(id) DO NOTHING
@@ -74,24 +70,54 @@ def initialize_config_db() -> None:
         connection.commit()
 
 
+def save_chat_instructions(
+    chat_id: str,
+    anam_prompt: str,
+    tutor_id: str = "default-tutor",
+    student_id: str = "default-student",
+) -> None:
+    """
+    Upsert a generated avatar prompt for a given chat session.
+    The Next.js frontend fetches this via GET /api/chat/{chat_id}/instructions.
+    """
+    db_path = get_config_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO chat_config (
+                id, tutorId, studentId, anamPrompt, completionState
+            )
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                anamPrompt = excluded.anamPrompt,
+                completionState = excluded.completionState
+            """,
+            (
+                chat_id,
+                tutor_id,
+                student_id,
+                anam_prompt,
+                _COMPLETION_STATE_FALSE,
+            ),
+        )
+        connection.commit()
+
+
 def get_chat_default_instructions() -> Optional[str]:
     initialize_config_db()
 
     with sqlite3.connect(get_config_db_path()) as connection:
         row = connection.execute(
-            """
-            SELECT anamPrompt, completionState
-            FROM chat_config
-            WHERE id = ?
-            """,
+            "SELECT anamPrompt, completionState FROM chat_config WHERE id = ?",
             (_CHAT_INSTRUCTIONS_KEY,),
         ).fetchone()
 
     if not row:
         return DEFAULT_CHAT_INSTRUCTIONS
 
-    completion_state = str(row[1]).strip().lower()
-    if completion_state == _COMPLETION_STATE_TRUE:
+    if str(row[1]).strip().lower() == _COMPLETION_STATE_TRUE:
         return None
 
     return str(row[0]).strip() or DEFAULT_CHAT_INSTRUCTIONS
@@ -100,25 +126,20 @@ def get_chat_default_instructions() -> Optional[str]:
 def get_chat_instructions_by_id(chat_id: str) -> Optional[str]:
     initialize_config_db()
 
-    normalized_chat_id = chat_id.strip()
-    if not normalized_chat_id:
+    normalized = chat_id.strip()
+    if not normalized:
         return None
 
     with sqlite3.connect(get_config_db_path()) as connection:
         row = connection.execute(
-            """
-            SELECT anamPrompt, completionState
-            FROM chat_config
-            WHERE id = ?
-            """,
-            (normalized_chat_id,),
+            "SELECT anamPrompt, completionState FROM chat_config WHERE id = ?",
+            (normalized,),
         ).fetchone()
 
     if not row:
         return None
 
-    completion_state = str(row[1]).strip().lower()
-    if completion_state == _COMPLETION_STATE_TRUE:
+    if str(row[1]).strip().lower() == _COMPLETION_STATE_TRUE:
         return None
 
     return str(row[0]).strip() or DEFAULT_CHAT_INSTRUCTIONS
