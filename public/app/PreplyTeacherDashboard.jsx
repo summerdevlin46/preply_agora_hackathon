@@ -1,55 +1,165 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import {
   Wallet, ChevronDown, CalendarClock, HelpCircle, Bell,
   BookOpen, Mic, PenLine, FileText, FolderOpen, Image,
   FilePen, X, Sparkles, ClipboardList, FileSpreadsheet, Check, ArrowLeft,
+  Lightbulb, RefreshCw, User
 } from "lucide-react";
 
 const ASSIGNMENT_TYPES = [
   {
-    id: "vocab",
-    label: "Vocabulary",
-    sublabel: "Reinforcement",
-    icon: BookOpen,
+    id: "speaking",
+    label: "Avatar Conversation",
+    sublabel: "Fluency & Turn-Taking",
+    icon: Mic,
     color: "#7C3AED",
     bg: "#F5F3FF",
     border: "#DDD6FE",
+    avatarRole: "Conversational partner",
+    avatarVerb: "speaks with",
+    mechanicLabel: "How the conversation works:",
+    mechanic: "The avatar opens the session with a warm greeting and a context-setting question drawn from your worksheet. It listens to the student\u2019s full spoken response, mirrors key phrases back naturally, and gently recasts any errors before asking a follow-up \u2014 keeping the dialogue flowing in real-time turns until the topic is covered.",
   },
   {
-    id: "speaking",
-    label: "Speaking",
-    sublabel: "Practice",
-    icon: Mic,
+    id: "vocab",
+    label: "Vocabulary Challenge",
+    sublabel: "Spoken Word Production",
+    icon: BookOpen,
     color: "#0891B2",
     bg: "#ECFEFF",
     border: "#A5F3FC",
+    avatarRole: "Vocabulary coach",
+    avatarVerb: "quizzes",
+    mechanicLabel: "How the vocabulary drill works:",
+    mechanic: "The avatar presents each target word through a spoken definition, an example context, or a fill-in-the-blank prompt. The student says the word aloud and uses it in a sentence \u2014 or types it in chat if unsure. The avatar confirms correct usage instantly or models the right form, then moves to the next word until the full set is drilled.",
   },
   {
     id: "writing",
-    label: "Writing",
-    sublabel: "Exercise",
+    label: "Dictation & Feedback",
+    sublabel: "Writing + Spoken Review",
     icon: PenLine,
     color: "#059669",
     bg: "#ECFDF5",
     border: "#A7F3D0",
+    avatarRole: "Writing coach",
+    avatarVerb: "coaches",
+    mechanicLabel: "How the dictation works:",
+    mechanic: "The avatar reads a sentence aloud \u2014 built from your worksheet\u2019s vocabulary and structures \u2014 and waits for the student to type it into the chat. After each entry, it highlights spelling or grammar slips with spoken feedback and re-reads the sentence if asked. At the end, it summarises recurring error patterns so the student knows what to review.",
   },
   {
-    id: "reading",
-    label: "Reading",
-    sublabel: "Comprehension",
+    id: "grammar",
+    label: "Error Detective",
+    sublabel: "Form-Focused Grammar",
     icon: FileText,
     color: "#D97706",
     bg: "#FFFBEB",
     border: "#FDE68A",
+    avatarRole: "Grammar coach",
+    avatarVerb: "coaches",
+    mechanicLabel: "How the error detection works:",
+    mechanic: "The avatar reads a sentence containing a deliberate grammar mistake and challenges the student to spot and fix it \u2014 by voice or chat. Once the student responds, the avatar asks them to explain the underlying rule before confirming or clarifying it. Difficulty ramps up across rounds, reinforcing the target structures from your worksheet.",
   },
+];
+
+const DEMO_OUTPUTS = {
+  speaking: {
+    title: "Kitchen Chat: Present Continuous Conversation",
+    objective: "Student practises present continuous fluency through a structured back-and-forth conversation with Sofia about cooking actions.",
+    avatar_name: "Sofia",
+    avatar_prompt: `You are Sofia, a warm and encouraging cooking show host conducting a spoken conversation with a B1 English student. Your goal is to practise the present continuous tense through natural dialogue about cooking.
+
+Structure the session in three turns:
+1. Ask the student what they are doing right now in the kitchen \u2014 wait for their full response before reacting.
+2. Ask them to describe the steps of making their favourite dish one by one, responding naturally between each step.
+3. Ask them a follow-up opinion question about cooking (e.g. \u201cWhich do you prefer \u2014 baking or frying? What are you thinking about making this weekend?\u201d).
+
+After each student turn: acknowledge what they said, correct any present continuous errors naturally in your reply (model the correct form, do not just say \u201cwrong\u201d), and ask the next question. Vocabulary to reinforce: fry, bake, boil, whisk, chop, grill, pour, mix; utensils: pan, pot, spatula, cutting board.`,
+    tasks: [
+      { label: "Opening Question", content: "Sofia opens by asking what you are doing in the kitchen right now. Answer in full present continuous sentences \u2014 describe what you\u2019re cooking step by step." },
+      { label: "Dish Description", content: "Sofia asks you to describe making your favourite dish. Talk through the steps conversationally, using present continuous: \u201cFirst I am chopping the onion, now I am frying it\u2026\u201d" },
+      { label: "Opinion Follow-Up", content: "Sofia asks a broader question about your cooking habits. Answer naturally in conversation \u2014 she\u2019ll pick up on any tense errors and weave corrections into her reply." },
+    ],
+    tip: "Sofia waits for your complete answer before speaking. Take your time \u2014 there\u2019s no need to rush or interrupt.",
+  },
+  vocab: {
+    title: "Cooking Vocabulary: Spoken Word Challenge",
+    objective: "Student retrieves and produces cooking vocabulary aloud by responding to verbal definitions and using target words in full sentences.",
+    avatar_name: "Max",
+    avatar_prompt: `You are Max, an encouraging vocabulary coach working with a B1 English student on cooking vocabulary. You will run a spoken word challenge \u2014 no images or visual cues, everything is verbal.
+
+For each word, follow this pattern:
+1. Give a clear verbal description or definition of the target word (e.g. \u201cThis is a flat tool you use to flip food in a frying pan \u2014 what is it called?\u201d)
+2. Wait for the student to say the word aloud OR type it in the chat.
+3. If correct: confirm enthusiastically, then ask them to use it in a present continuous sentence (e.g. \u201cGreat! Now use it in a sentence \u2014 what is the chef doing?\u201d)
+4. If incorrect or unsure: say the word clearly, explain it again briefly, then move to the next.
+
+Run through these words in order: spatula, whisk, chopping board, kettle, pan, pot \u2014 then these verbs: fry, bake, boil, chop, grill, pour, mix. After all words, briefly recap any the student missed.`,
+    tasks: [
+      { label: "Listen & Respond", content: "Max describes each word or utensil out loud. Say the word aloud when you know it \u2014 or type it in the chat if you prefer. No guessing pressure: Max will tell you if you\u2019re stuck." },
+      { label: "Use It in a Sentence", content: "After each correct answer, Max asks you to use the word in a present continuous sentence. Speak naturally \u2014 Max responds to what you say before moving on." },
+      { label: "Missed Words Recap", content: "At the end, Max revisits any words you hesitated on. Listen to his description again and try once more." },
+    ],
+    tip: "Max won\u2019t show you anything visual \u2014 all clues are spoken. You can also type a word in the chat if you\u2019re unsure how to pronounce it.",
+  },
+  writing: {
+    title: "Cooking Dictation & Spoken Feedback",
+    objective: "Student types sentences dictated by the avatar, practising spelling and grammar, then receives spoken feedback on patterns of error.",
+    avatar_name: "Priya",
+    avatar_prompt: `You are Priya, a patient and precise writing coach working with a B1 English student. You will run a spoken dictation exercise using present continuous sentences about cooking.
+
+For each sentence:
+1. Read the sentence clearly and at natural speed (e.g. \u201cShe is whisking the cake batter in a large bowl.\u201d)
+2. Tell the student to type what they heard into the chat.
+3. Wait for their typed response.
+4. Give brief spoken feedback: confirm if correct, or point out the specific spelling or grammar error and say the correct version.
+5. Move to the next sentence.
+
+Use 6 dictation sentences that combine lesson vocabulary (fry, bake, boil, whisk, chop, grill, pour, mix) with utensils (pan, pot, spatula, cutting board) in present continuous form. After all 6, give a spoken summary of any patterns you noticed \u2014 e.g. spelling errors, missing -ing, wrong verb form.`,
+    tasks: [
+      { label: "Type What You Hear", content: "Priya reads a sentence aloud at natural pace. Type exactly what you hear into the chat. Don\u2019t worry about perfection \u2014 Priya gives feedback after each one." },
+      { label: "Listen for Corrections", content: "After you type, Priya speaks her feedback. If you made an error, she says the correct version. Listen carefully before she moves to the next sentence." },
+      { label: "Error Pattern Summary", content: "After 6 sentences, Priya gives a spoken summary of patterns in your errors \u2014 e.g. missing -ing, spelling of irregular verbs. Note down anything to review." },
+    ],
+    tip: "Type into the chat exactly what you hear \u2014 don\u2019t edit as you go. Priya will give spoken corrections after each sentence.",
+  },
+  grammar: {
+    title: "Error Detective: Present Continuous",
+    objective: "Student listens to sentences with deliberate grammar errors, responds with the correction by voice or chat, then explains the rule.",
+    avatar_name: "Leo",
+    avatar_prompt: `You are Leo, a sharp and encouraging grammar coach working with a B1 English student. You will read sentences aloud that contain deliberate present continuous errors.
+
+For each sentence:
+1. Read the sentence clearly \u2014 do not signal that it contains an error.
+2. Say: \u201cDoes that sound right to you?\u201d
+3. Wait for the student to respond by voice or to type their correction in the chat.
+4. If they identify the error: ask them to explain the rule \u2014 \u201cWhy is that wrong \u2014 what\u2019s the grammar rule?\u201d
+5. Confirm the rule or gently clarify if their explanation is incomplete.
+6. Say the corrected sentence clearly before moving on.
+
+Use these error types across 6 sentences: missing \u2018be\u2019 verb (\u201cShe mixing the batter\u201d), wrong be-form (\u201cThey is grilling the vegetables\u201d), missing -ing (\u201cHe is fry the onion\u201d), and incorrect word order. After all 6, give a score and briefly summarise any rules they struggled with.`,
+    tasks: [
+      { label: "Does That Sound Right?", content: "Leo reads a sentence aloud and asks if it sounds correct. Respond by voice \u2014 say \u201cyes\u201d or say the corrected version in full. You can also type your correction in the chat." },
+      { label: "Explain the Rule", content: "When you spot an error, Leo asks you to explain why it\u2019s wrong. Say the grammar rule out loud in your own words \u2014 e.g. \u201cThe verb \u2018be\u2019 has to match the subject.\u201d" },
+      { label: "Score & Summary", content: "After 6 sentences, Leo tells you your score and talks through any rules you found tricky. Listen to his summary and ask follow-up questions if anything is unclear." },
+    ],
+    tip: "Leo reads the full sentence first without signalling the error. Listen to the whole thing before deciding if it sounds right \u2014 just like you would in real life.",
+  },
+};
+
+const HOW_STEPS = [
+  { icon: FileText, text: "Worksheet & lesson context sent to an AI agent" },
+  { icon: Sparkles, text: "Tailored avatar prompt is generated per mode" },
+  { icon: Mic, text: "Student launches a live Anam AI session" },
+  { icon: ClipboardList, text: "Avatar guides the exercise with spoken feedback" },
+  { icon: Check, text: "Lesson report sent back to the teacher" },
 ];
 
 const ACCEPT_TYPES = ".pdf,.jpg,.jpeg,.png,.docx,.doc";
 
-/* ── keyframes ── */
+/* -- keyframes -- */
 const spin = keyframes`
   to { transform: rotate(360deg); }
 `;
@@ -59,7 +169,12 @@ const pulse = keyframes`
   50% { opacity: 0.8; }
 `;
 
-/* ── styled components ── */
+const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+/* -- styled components -- */
 const Page = styled.div`
   font-family: inherit;
   background: #fff;
@@ -167,12 +282,16 @@ const BadgeCount = styled.span`
   padding: 0 3px;
 `;
 
-const Avatar = styled.img`
+const AvatarSquare = styled.div`
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  object-fit: cover;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: rgba(0, 0, 0, 0.25);
 `;
 
 const Container = styled.div`
@@ -420,71 +539,88 @@ const Textarea = styled.textarea`
   transition: border-color 0.15s;
 `;
 
-const PromptMeta = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 6px;
-`;
-
 const CharCount = styled.span`
   font-family: "PreplyInter", sans-serif;
   font-size: 11px;
   color: #9ca3af;
 `;
 
-const TypeGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-`;
-
-const TypeBtn = styled.button`
-  border-radius: 12px;
-  padding: 16px 12px;
-  cursor: pointer;
+const PromptFooter = styled.div`
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 3px;
-  position: relative;
-  transition: all 0.15s ease;
-  text-align: center;
-  background: ${(props) => (props.$active ? props.$bg : "#FAFAFA")};
-  border: 2px solid ${(props) => (props.$active ? props.$color : "#E5E7EB")};
-  color: ${(props) => (props.$active ? props.$color : "#6B7280")};
+  margin-top: 10px;
 `;
 
-const TypeBtnIcon = styled.span`
-  margin-bottom: 2px;
+const OptimizeBtn = styled.button`
   display: flex;
-`;
-
-const TypeBtnLabel = styled.span`
+  align-items: center;
+  gap: 6px;
+  background: #ff7aac;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 7px 14px;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-`;
-
-const TypeBtnSub = styled.span`
+  color: #000;
+  cursor: pointer;
   font-family: "PreplyInter", sans-serif;
-  font-size: 11px;
-  opacity: 0.7;
+  transition: all 0.17s ease;
+  letter-spacing: 0.01em;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 `;
 
-const TypeCheck = styled.span`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 18px;
-  height: 18px;
+const OptSpinner = styled.span`
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0,0,0,.1);
+  border-top: 2px solid #000000;
   border-radius: 50%;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
+  display: inline-block;
+  animation: ${spin} 0.7s linear infinite;
+`;
+
+const OptimizedBanner = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: ${(props) => props.$color};
+  gap: 7px;
+  background: #ECFDF5;
+  border: 2px solid #A7F3D0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065F46;
+  animation: ${fadeUp} 0.25s ease;
+`;
+
+const MechanicBox = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #fff7c1;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 12px 14px;
+  animation: ${fadeUp} 0.2s ease;
+`;
+
+const MechanicText = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 16px;
+  color: #4B5563;
+  margin: 0;
+  letter-spacing: -0.02em;
+  
+  strong {
+    color:#000;
+  }
 `;
 
 const GenerateBtn = styled.button`
@@ -499,6 +635,7 @@ const GenerateBtn = styled.button`
   font-family: "PreplyInter", sans-serif;
   transition: all 0.15s ease;
   letter-spacing: 0.01em;
+  border: 2px solid #000;
   opacity: ${(props) => (props.$canGenerate ? 1 : 0.5)};
   cursor: ${(props) => (props.$canGenerate ? "pointer" : "not-allowed")};
 `;
@@ -530,10 +667,11 @@ const Spinner = styled.span`
 
 const OutputCard = styled.section`
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 2px solid ${(props) => props.$borderColor || "#dad9de"};
   border-radius: 12px;
   overflow: hidden;
   box-shadow: none;
+  animation: ${fadeUp} 0.3s ease;
 `;
 
 const OutputHeader = styled.div`
@@ -545,10 +683,31 @@ const OutputHeader = styled.div`
   background: #fff;
 `;
 
+const OutputHeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const OutputDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+`;
+
 const OutputTitle = styled.span`
   font-size: 13px;
   font-weight: 600;
   color: #374151;
+`;
+
+const ModePill = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
 `;
 
 const CopyBtn = styled.button`
@@ -561,16 +720,334 @@ const CopyBtn = styled.button`
   color: #6b7280;
   cursor: pointer;
   font-family: inherit;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #F3F4F6;
+  }
 `;
 
-const OutputText = styled.pre`
-  padding: 18px;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.7;
-  color: #374151;
-  white-space: pre-wrap;
+const AvatarBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  color: #fff;
+`;
+
+const AvatarCircle = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const AvatarInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+`;
+
+const AvatarName = styled.span`
   font-family: "PreplyInter", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+`;
+
+const AvatarSub = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 10px;
+  opacity: 0.75;
+`;
+
+const LaunchBtn = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  padding: 8px 14px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "PreplyInter", sans-serif;
+  flex-shrink: 0;
+  transition: all 0.17s ease;
+
+  &:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+  }
+`;
+
+const RichBody = styled.div`
+  padding: 18px 20px 22px;
+`;
+
+const RichTitle = styled.h3`
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: #111827;
+`;
+
+const RichObjective = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  color: #4B5563;
+  line-height: 1.65;
+  margin: 0 0 14px;
+`;
+
+const PromptBox = styled.div`
+  background: #F9F8FF;
+  border: 2px solid ${(props) => props.$borderColor || "#dad9de"};
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+`;
+
+const PromptBoxHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+`;
+
+const PromptBoxLabel = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  flex: 1;
+`;
+
+const PromptBoxBadge = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+`;
+
+const PromptBoxText = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  color: #6B7280;
+  line-height: 1.65;
+  margin: 0;
+  font-style: italic;
+  white-space: pre-wrap;
+`;
+
+const TasksHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`;
+
+const TasksLabel = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+`;
+
+const TasksCount = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  color: #9CA3AF;
+`;
+
+const TasksList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const TaskCard = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 11px 14px;
+  background: #FAFAFF;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: #C4B5FD;
+  }
+`;
+
+const TaskIndex = styled.div`
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+`;
+
+const TaskBody = styled.div`
+  flex: 1;
+`;
+
+const TaskLabel = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  display: block;
+  margin-bottom: 3px;
+`;
+
+const TaskContent = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  color: #6B7280;
+  line-height: 1.65;
+  margin: 0;
+`;
+
+const TipRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #FFFBEB;
+  border-radius: 12px;
+  border: 2px solid #FDE68A;
+  color: #92400E;
+`;
+
+const TipText = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 11px;
+  color: #92400E;
+  line-height: 1.55;
+`;
+
+const ReportRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #F5F3FF;
+  border-radius: 12px;
+  border: 2px solid #DDD6FE;
+`;
+
+const ReportLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const ReportTitle = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5B21B6;
+  margin: 0;
+`;
+
+const ReportSub = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 10px;
+  color: #7C3AED;
+  margin: 0;
+  opacity: 0.75;
+`;
+
+const ReportTags = styled.div`
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+`;
+
+const ReportTag = styled.span`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: #EDE9FE;
+  color: #5B21B6;
+  border-radius: 10px;
+`;
+
+const HowCard = styled.section`
+  border: 2px solid #dad9de;
+  border-radius: 12px;
+  padding: 24px;
+`;
+
+const HowTitle = styled.p`
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 16px;
+  letter-spacing: 0.07em;
+`;
+
+const HowList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+`;
+
+const HowRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+`;
+
+const HowLeft = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+`;
+
+const HowIconWrap = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #000;
+`;
+
+const HowLine = styled.div`
+  width: 1px;
+  height: 14px;
+  background: #DDD6FE;
+  margin: 2px 0;
+`;
+
+const HowText = styled.p`
+  font-family: "PreplyInter", sans-serif;
+  font-size: 14px;
+  line-height: 2;
+  margin: 6px 0 14px;
 `;
 
 const Skeleton = styled.div`
@@ -633,20 +1110,27 @@ const NavItem = styled.a`
 
 const Wrapper = styled.div``
 
-/* ── component ── */
+/* -- component -- */
 export default function PreplyTeacherDashboard() {
-  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [selectedType, setSelectedType] = useState("speaking");
   const [prompt, setPrompt] = useState("");
   const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimized, setOptimized] = useState(false);
   const fileInputRef = useRef(null);
 
-  const toggleType = (id) => {
-    setSelectedTypes((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
+  useEffect(() => {
+    setFiles([{ file: { name: "SV-Cooking-Present-Continuous.pdf", size: 812400 }, id: "demo-file" }]);
+    setPrompt("Student practised present continuous using a cooking-themed worksheet. They know vocabulary: fry, bake, boil, whisk, chop, grill, pour, mix, pan, pot, spatula, cutting board. Level B1.");
+  }, []);
+
+  const selectType = (id) => {
+    setSelectedType(id);
+    setGenerated(null);
   };
 
   const handleFiles = (incoming) => {
@@ -680,45 +1164,48 @@ export default function PreplyTeacherDashboard() {
     return (bytes / 1048576).toFixed(1) + " MB";
   };
 
-  const canGenerate = selectedTypes.length > 0 && prompt.trim().length > 0;
+  const activeType = ASSIGNMENT_TYPES.find((t) => t.id === selectedType);
+  const canGenerate = prompt.trim().length > 0;
+  const canOptimize = prompt.trim().length > 10 && !isOptimizing && !isGenerating;
+
+  const handleOptimize = async () => {
+    if (!canOptimize) return;
+    setIsOptimizing(true);
+    setOptimized(false);
+    try {
+      const response = await fetch("/api/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await response.json();
+      if (data.improved) {
+        setPrompt(data.improved);
+        setOptimized(true);
+        setTimeout(() => setOptimized(false), 3000);
+      }
+    } catch (err) {
+      // fail silently, keep original prompt
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setIsGenerating(true);
     setGenerated(null);
+    await new Promise((r) => setTimeout(r, 2000));
+    setGenerated(DEMO_OUTPUTS[selectedType]);
+    setIsGenerating(false);
+  };
 
-    const typeLabels = selectedTypes.map((id) => ASSIGNMENT_TYPES.find((t) => t.id === id)?.label).join(", ");
-    const fileNote = files.length > 0 ? ` Files uploaded: ${files.map((f) => f.file.name).join(", ")}.` : "";
-
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are an expert language tutor assistant on Preply. Generate a concise, ready-to-use assignment for a student based on the teacher's instructions. Format your response with:
-1. A short assignment title
-2. Clear objective (1 sentence)
-3. 3\u20135 specific tasks or questions
-Keep it practical and engaging. No preamble.`,
-          messages: [
-            {
-              role: "user",
-              content: `Assignment type(s): ${typeLabels}${fileNote}\nTeacher instructions: ${prompt}`,
-            },
-          ],
-        }),
-      });
-
-      const data = await response.json();
-      const text = data.content?.find((b) => b.type === "text")?.text || "No response generated.";
-      setGenerated(text);
-    } catch (err) {
-      setGenerated("Failed to generate assignment. Please try again.");
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleCopy = () => {
+    if (!generated) return;
+    const text = `${generated.title}\n\nObjective: ${generated.objective}\n\nAvatar Prompt:\n${generated.avatar_prompt}\n\nTasks:\n${generated.tasks.map((t, i) => `${i + 1}. ${t.label}: ${t.content}`).join("\n")}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -741,7 +1228,7 @@ Keep it practical and engaging. No preamble.`,
           </LangSelector>
           <IconButton>
             <CalendarClock size={22} />
-            <BadgeCount>14</BadgeCount>
+            <BadgeCount>0</BadgeCount>
           </IconButton>
           <IconButton>
             <HelpCircle size={22} />
@@ -749,7 +1236,7 @@ Keep it practical and engaging. No preamble.`,
           <IconButton>
             <Bell size={22} />
           </IconButton>
-          <Avatar src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face" alt="Profile" />
+          <AvatarSquare><User size={20} /></AvatarSquare>
         </TopBarRight>
       </TopBar>
 
@@ -781,14 +1268,14 @@ Keep it practical and engaging. No preamble.`,
             {/* SIDEBAR - Assignment types */}
             <Sidebar>
               {ASSIGNMENT_TYPES.map((type) => {
-                const active = selectedTypes.includes(type.id);
+                const active = selectedType === type.id;
                 return (
                   <SidebarItem
                     key={type.id}
                     $active={active}
                     $bg={type.bg}
                     $color={type.color}
-                    onClick={() => toggleType(type.id)}
+                    onClick={() => selectType(type.id)}
                   >
                     <type.icon size={18} />
                     {type.label}
@@ -800,12 +1287,20 @@ Keep it practical and engaging. No preamble.`,
             {/* MAIN CONTENT */}
             <MainCol>
               <SectionTitle>
-                {selectedTypes.length === 0
-                  ? "Select an assignment type"
-                  : selectedTypes
-                      .map((id) => ASSIGNMENT_TYPES.find((t) => t.id === id)?.label)
-                      .join(" + ")}
+                {activeType?.label ?? "Select an assignment type"}
+                <CardDesc style={{letterSpacing: '0.02em'}}>Powered by Anam AI</CardDesc>
               </SectionTitle>
+
+              {/* Mechanic description */}
+              {activeType && (
+                <MechanicBox key={selectedType}>
+                  <activeType.icon size={24} style={{ flexShrink: 0, color: '#000' }} />
+                  <MechanicText>
+                    <strong>{activeType.mechanicLabel} </strong>
+                    {activeType.mechanic}
+                  </MechanicText>
+                </MechanicBox>
+              )}
 
               {/* Upload */}
               <Card>
@@ -864,13 +1359,51 @@ Keep it practical and engaging. No preamble.`,
                 <Textarea
                   placeholder="e.g. Create 5 fill-in-the-blank sentences using vocabulary from the worksheet, targeting B1 level..."
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={(e) => { setPrompt(e.target.value); setOptimized(false); }}
                   rows={5}
+                  style={optimized ? { borderColor: "#059669" } : undefined}
                 />
-                <PromptMeta>
+                <PromptFooter>
                   <CharCount>{prompt.length} / 500</CharCount>
-                </PromptMeta>
+                  <OptimizeBtn disabled={!canOptimize} onClick={handleOptimize}>
+                    {isOptimizing ? (
+                      <SpinnerWrap><OptSpinner /> Optimizing...</SpinnerWrap>
+                    ) : optimized ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Check size={16} /> Done!
+                      </span>
+                    ) : (
+                      <>
+                        <RefreshCw size={16} />
+                        Optimize prompt
+                      </>
+                    )}
+                  </OptimizeBtn>
+                </PromptFooter>
               </Card>
+
+              {/* How it works */}
+              <HowCard>
+                <HowTitle>How it works</HowTitle>
+                <HowList>
+                  {HOW_STEPS.map((item, i) => (
+                    <HowRow key={i}>
+                      <HowLeft>
+                        <HowIconWrap style={{
+                          background: i === HOW_STEPS.length - 1 ? "#ff7aac" : "#fff"
+                        }}>
+                          <item.icon size={20} />
+                        </HowIconWrap>
+                        {i < HOW_STEPS.length - 1 && <HowLine />}
+                      </HowLeft>
+                      <HowText style={{
+                        fontWeight: i === HOW_STEPS.length - 1 ? 600 : 400,
+                        color: i === HOW_STEPS.length - 1 ? "#000" : "#4B5563",
+                      }}>{item.text}</HowText>
+                    </HowRow>
+                  ))}
+                </HowList>
+              </HowCard>
 
               {/* Generate */}
               <GenerateBtn
@@ -879,30 +1412,39 @@ Keep it practical and engaging. No preamble.`,
                 onClick={handleGenerate}
               >
                 {isGenerating ? (
-                  <SpinnerWrap><Spinner /> Generating...</SpinnerWrap>
+                  <SpinnerWrap><Spinner /> Building avatar session...</SpinnerWrap>
                 ) : (
-                  <SpinnerWrap><FileSpreadsheet size={20} /> Generate assignment</SpinnerWrap>
+                  <SpinnerWrap><FileSpreadsheet size={20} /> Generate {activeType?.label ?? "Assignment"}</SpinnerWrap>
                 )}
               </GenerateBtn>
 
               {!canGenerate && (
                 <GenerateHint>
-                  {selectedTypes.length === 0 && !prompt ? "Select a type and add a prompt to continue" :
-                    selectedTypes.length === 0 ? "Select at least one assignment type" :
-                      "Add a teacher prompt to continue"}
+                  Add a teacher prompt to continue
                 </GenerateHint>
               )}
 
               {/* Output */}
               {(isGenerating || generated) && (
-                <OutputCard>
+                <OutputCard $borderColor={activeType?.border}>
                   <OutputHeader>
-                    <OutputTitle><ClipboardList size={14} style={{ marginRight: 6, verticalAlign: "middle" }} /> Generated Assignment</OutputTitle>
+                    <OutputHeaderLeft>
+                      <OutputDot style={{ background: activeType?.color ?? "#7C3AED" }} />
+                      <OutputTitle>Avatar Session</OutputTitle>
+                      {generated && (
+                        <ModePill style={{ background: activeType?.bg, color: activeType?.color }}>
+                          {activeType?.label}
+                        </ModePill>
+                      )}
+                    </OutputHeaderLeft>
                     {generated && (
-                      <CopyBtn onClick={() => navigator.clipboard.writeText(generated)}>Copy</CopyBtn>
+                      <CopyBtn onClick={handleCopy}>
+                        {copied ? "Copied!" : "Copy prompt"}
+                      </CopyBtn>
                     )}
                   </OutputHeader>
-                  {isGenerating ? (
+
+                  {isGenerating && (
                     <Skeleton>
                       <SkeletonLine $width="70%" />
                       <SkeletonLine $width="90%" />
@@ -910,8 +1452,76 @@ Keep it practical and engaging. No preamble.`,
                       <SkeletonLine $width="80%" />
                       <SkeletonLine $width="50%" />
                     </Skeleton>
-                  ) : (
-                    <OutputText>{generated}</OutputText>
+                  )}
+
+                  {generated && (
+                    <>
+                      {/* Avatar banner */}
+                      <AvatarBanner style={{ background: `linear-gradient(135deg, ${activeType?.color} 0%, ${activeType?.color}bb 100%)` }}>
+                        <AvatarCircle>
+                          <activeType.icon size={20} />
+                        </AvatarCircle>
+                        <AvatarInfo>
+                          <AvatarName>{generated.avatar_name} — AI {activeType?.avatarRole}</AvatarName>
+                          <AvatarSub>Live voice + text chat · {activeType?.sublabel}</AvatarSub>
+                        </AvatarInfo>
+                        <LaunchBtn>Launch Session</LaunchBtn>
+                      </AvatarBanner>
+
+                      <RichBody>
+                        <RichTitle>{generated.title}</RichTitle>
+                        <RichObjective><strong>Objective:</strong> {generated.objective}</RichObjective>
+
+                        {/* System prompt box */}
+                        <PromptBox $borderColor={activeType?.border}>
+                          <PromptBoxHeader>
+                            <Sparkles size={14} style={{ color: activeType?.color }} />
+                            <PromptBoxLabel style={{ color: activeType?.color }}>Avatar System Prompt</PromptBoxLabel>
+                            <PromptBoxBadge style={{ background: activeType?.color }}>Sent to Anam</PromptBoxBadge>
+                          </PromptBoxHeader>
+                          <PromptBoxText>{generated.avatar_prompt}</PromptBoxText>
+                        </PromptBox>
+
+                        {/* Tasks */}
+                        <TasksHeader>
+                          <TasksLabel>Student Tasks</TasksLabel>
+                          <TasksCount>{generated.tasks.length} activities</TasksCount>
+                        </TasksHeader>
+                        <TasksList>
+                          {generated.tasks.map((task, i) => (
+                            <TaskCard key={i}>
+                              <TaskIndex style={{ background: activeType?.color }}>{i + 1}</TaskIndex>
+                              <TaskBody>
+                                <TaskLabel>{task.label}</TaskLabel>
+                                <TaskContent>{task.content}</TaskContent>
+                              </TaskBody>
+                            </TaskCard>
+                          ))}
+                        </TasksList>
+
+                        {/* Tip */}
+                        <TipRow>
+                          <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                          <TipText>{generated.tip}</TipText>
+                        </TipRow>
+
+                        {/* Lesson report */}
+                        <ReportRow>
+                          <ReportLeft>
+                            <FileSpreadsheet size={18} style={{ color: "#5B21B6" }} />
+                            <div>
+                              <ReportTitle>Lesson Report</ReportTitle>
+                              <ReportSub>Sent to you after the session completes</ReportSub>
+                            </div>
+                          </ReportLeft>
+                          <ReportTags>
+                            {["Errors flagged", "Words used", "Tasks completed"].map((tag) => (
+                              <ReportTag key={tag}>{tag}</ReportTag>
+                            ))}
+                          </ReportTags>
+                        </ReportRow>
+                      </RichBody>
+                    </>
                   )}
                 </OutputCard>
               )}

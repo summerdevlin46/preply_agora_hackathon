@@ -1,4 +1,7 @@
+"use client";
+
 import { useState, useRef, useCallback, useEffect } from "react";
+
 
 // All four modes work within Anam's actual capabilities:
 // - Avatar speaks and listens in live turns (no mid-turn interruption)
