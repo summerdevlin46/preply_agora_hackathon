@@ -75,5 +75,5 @@ Of the four exercise modes, Error Detective is the most structured and most robu
 
 - **RL reward signal** — log `(mode, retry_count, feedback)` to DynamoDB, train bandit on teacher acceptance rate
 - **Student session report** — parse Anam transcript after session ends, send structured debrief to teacher
-- **Thymia integration** — real-time speech confidence scoring during the session feeds back into difficulty selection
-- **Multi-turn memory** — avatar remembers errors from earlier in the session when giving the final summary
+- **Thymia integration** — real-time speech confidence scoring during the session feeds back into difficulty selection ACTUALLY DONE thanks to the report
+- **Multi-turn memory** — avatar remembers errors from earlier in the session when giving the final summary MUST SEE IF THIS IS A LIMITATION OF THE AVATARS
