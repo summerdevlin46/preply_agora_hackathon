@@ -1,90 +1,64 @@
+"""
+mirror/agents/nodes.py
+
+LangGraph nodes for the avatar prompt generation workflow.
+"""
+import logging
+
 from mirror.agents.state import ExerciseState
-from mirror.generation.excerpt_selector import select_reference_excerpt
-from mirror.generation.prompt_builder import build_exercise_prompt
-from mirror.generation.repair_prompt import build_repair_prompt
-from mirror.generation.style_analyzer import analyze_style
-from mirror.generation.verifier import verify_generated_exercise
-from mirror.models import generate_with_backend
+from mirror.generation.cleanup import run_cleanup
+from mirror.generation.prompt_builder import build_avatar_system_prompt
+
+logger = logging.getLogger(__name__)
 
 
-def select_excerpt_node(state: ExerciseState) -> ExerciseState:
-    worksheet_text = state.get("worksheet_text", "").strip()
-    if not worksheet_text:
-        return {"error": "Please upload a worksheet first."}
+def cleanup_node(state: ExerciseState) -> ExerciseState:
+    """
+    Calls the cleanup model to turn raw teacher notes + worksheet JSON
+    into structured GOAL and USEFUL CONTEXT blocks.
+    Passes feedback if this is a regeneration.
+    """
+    teacher_notes = state.get("teacher_notes", "").strip()
+    worksheet_json = state.get("worksheet_json") or {}
+    feedback = state.get("feedback", "").strip() or None
 
-    return {"reference_excerpt": select_reference_excerpt(worksheet_text)}
+    if not worksheet_json:
+        return {"error": "No worksheet uploaded. Please upload a worksheet first."}
 
-
-def analyze_style_node(state: ExerciseState) -> ExerciseState:
-    worksheet_text = state.get("worksheet_text", "").strip()
-    if not worksheet_text:
-        return {"error": "Worksheet text is missing."}
-
-    return {"style_summary": analyze_style(worksheet_text)}
-
-
-def build_prompt_node(state: ExerciseState) -> ExerciseState:
-    learner_name = state.get("learner_name", "").strip() or "the learner"
-    topic = state.get("topic", "").strip()
-    reference_excerpt = state.get("reference_excerpt", "").strip()
-    style_summary = state.get("style_summary", "").strip()
-
-    if not topic:
-        return {"error": "Please provide a topic."}
-
-    prompt = build_exercise_prompt(
-        learner_name=learner_name,
-        topic=topic,
-        reference_excerpt=reference_excerpt,
-        style_summary=style_summary,
-    )
-    return {"prompt": prompt}
-
-
-def generate_node(state: ExerciseState) -> ExerciseState:
-    prompt = state.get("prompt", "").strip()
-    if not prompt:
-        return {"error": "Prompt generation failed."}
-
-    output = generate_with_backend(prompt=prompt)
-    return {"output": output}
-
-
-def verify_node(state: ExerciseState) -> ExerciseState:
-    topic = state.get("topic", "").strip()
-    output = state.get("output", "").strip()
-
-    error = verify_generated_exercise(topic=topic, generated_text=output)
-    if error:
-        return {"error": error}
-
-    return {"error": ""}
-
-
-def build_repair_prompt_node(state: ExerciseState) -> ExerciseState:
-    original_prompt = state.get("prompt", "").strip()
-    topic = state.get("topic", "").strip()
-    bad_output = state.get("output", "").strip()
-    verification_error = state.get("error", "").strip()
-
-    repair_prompt = build_repair_prompt(
-        original_prompt=original_prompt,
-        topic=topic,
-        bad_output=bad_output,
-        verification_error=verification_error,
-    )
+    try:
+        goal_block, context_block = run_cleanup(
+            teacher_notes=teacher_notes,
+            worksheet_json=worksheet_json,
+            feedback=feedback,
+        )
+    except RuntimeError as exc:
+        logger.error("Cleanup node failed: %s", exc)
+        return {"error": str(exc)}
 
     return {
-        "repair_prompt": repair_prompt,
+        "goal_block": goal_block,
+        "context_block": context_block,
         "error": "",
-        "retry_count": state.get("retry_count", 0) + 1,
     }
 
 
-def repair_generate_node(state: ExerciseState) -> ExerciseState:
-    repair_prompt = state.get("repair_prompt", "").strip()
-    if not repair_prompt:
-        return {"error": "Repair prompt generation failed."}
+def build_prompt_node(state: ExerciseState) -> ExerciseState:
+    """
+    Assembles the full avatar system prompt from static template
+    and cleaned GOAL + USEFUL CONTEXT blocks.
+    """
+    goal_block = state.get("goal_block", "").strip()
+    context_block = state.get("context_block", "").strip()
 
-    output = generate_with_backend(prompt=repair_prompt)
-    return {"output": output}
+    if not goal_block or not context_block:
+        return {"error": "Cleanup step did not produce valid blocks."}
+
+    avatar_system_prompt = build_avatar_system_prompt(
+        goal_block=goal_block,
+        context_block=context_block,
+    )
+
+    return {
+        "avatar_system_prompt": avatar_system_prompt,
+        "error": "",
+    }

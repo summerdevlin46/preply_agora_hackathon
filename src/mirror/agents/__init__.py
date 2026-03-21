@@ -1,3 +1,3 @@
-from .exercise_workflow import run_exercise_workflow
+from .exercise_workflow import run_prompt_workflow
 
-__all__ = ["run_exercise_workflow"]
+__all__ = ["run_prompt_workflow"]
