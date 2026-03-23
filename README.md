@@ -1,4 +1,4 @@
-# 🪞 Mirror — AI-Powered Post-Lesson Language Coach
+# 🪞 AfterClass 
 
 Mirror turns a teacher's worksheet into a live AI avatar session for the student. The teacher uploads a PDF, adds lesson context, and Mirror generates a personalised speaking exercise delivered by an Anam AI avatar in real time.
 
