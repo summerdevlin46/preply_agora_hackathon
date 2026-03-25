@@ -1,6 +1,8 @@
-# 🪞 AfterClass 
+# AfterClass
 
-Mirror turns a teacher's worksheet into a live AI avatar session for the student. The teacher uploads a PDF, adds lesson context, and Mirror generates a personalised speaking exercise delivered by an Anam AI avatar in real time.
+AfterClass makes homework generation easy for teachers and delivers more targeted, personalised speaking practice to students.
+
+Teachers upload their lesson materials (worksheets), add a prompt with context, and choose an exercise type (conversation, vocabulary, dictation, error detective). AfterClass generates an Anam avatar session with clear instructions for the avatar and a student activity page. When the student finishes, the teacher receives a report with performance insights, what the student got wrong, and suggestions for the next lesson — enriched with Thymia Helios statistics (confidence, frustration, etc.).
 
 **Built at:** Preply × Agora Hackathon, Barcelona, March 2026
 
@@ -8,22 +10,22 @@ Mirror turns a teacher's worksheet into a live AI avatar session for the student
 
 ## What it does
 
-1. **Teacher uploads a worksheet** — Mirror parses it via GPT-4o vision OCR into structured JSON
-2. **Teacher adds lesson context** — level, focus areas, any extra notes
-3. **Mirror generates four avatar session prompts** — one per exercise mode (conversation, vocabulary, dictation, error detective)
-4. **Student launches a live Anam session** — the avatar coaches them through the exercise by voice
-5. **After the session** — Thymia Helios analyses the student's audio for confidence and fluency scores, GPT-4o generates a teacher report
+1. **Teacher uploads materials** — worksheet is parsed via GPT-4o vision into structured JSON
+2. **Teacher adds context + selects an exercise type** — conversation / vocabulary / dictation / error detective
+3. **AfterClass generates the session** — Anam avatar instructions + student-facing task content
+4. **Student completes the exercise** — live spoken practice with the avatar
+5. **Teacher receives a report** — mistakes + suggested next-lesson topics, plus Thymia Helios voice/emotion biomarker stats (confidence, frustration, etc.)
 
 ---
 
 ## Architecture
 
 ```
-Teacher uploads PDF
+Teacher uploads worksheet + prompt + selects exercise type
         ↓
-POST /api/worksheet/parse   (GPT-4o vision OCR → structured JSON)
+POST /api/worksheet/parse      (GPT-4o vision → structured JSON)
         ↓
-POST /api/exercises/generate  (GPT-4o → 4 avatar prompts + tasks per mode)
+POST /api/exercises/generate   (GPT-4o → avatar prompt + student task per mode)
         ↓
 Saved to SQLite under chat_id per mode
         ↓
@@ -35,10 +37,10 @@ POST /api/anam/session → Anam session token
         ↓
 Live avatar session (voice + text)
         ↓
-POST /api/chat/{chat_id}/complete  (transcript → GPT-4o → teacher analysis)
-POST /api/report/analyze           (WAV → Thymia Helios → confidence + fluency)
+POST /api/chat/{chat_id}/complete     (transcript → teacher-facing feedback)
+POST /api/report/analyze              (WAV → Thymia Helios → confidence/frustration/etc.)
         ↓
-GET /api/report/{chat_id}/teacher  (merged teacher report)
+GET /api/report/{chat_id}/teacher     (merged teacher report)
 ```
 
 ---
@@ -49,9 +51,9 @@ GET /api/report/{chat_id}/teacher  (merged teacher report)
 |---|---|
 | Frontend | Next.js 14 (TypeScript) |
 | Backend | FastAPI (Python 3.13) |
-| OCR | GPT-4o vision |
+| Worksheet parsing | GPT-4o vision |
 | Avatar | Anam SDK |
-| Voice biomarkers | Thymia Sentinel (Helios) |
+| Voice / emotion biomarkers | Thymia (Helios) |
 | LLM | OpenAI GPT-4o via `responses.create` |
 | Agent orchestration | LangGraph |
 | Storage | SQLite (local) |
@@ -70,8 +72,8 @@ GET /api/report/{chat_id}/teacher  (merged teacher report)
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-org/mirror.git
-cd mirror
+git clone https://github.com/summerdevlin46/preply_agora_hackathon.git
+cd preply_agora_hackathon
 make setup
 ```
 
@@ -93,8 +95,8 @@ ANAM_LLM_ID=...
 THYMIA_API_KEY=...
 
 # Optional overrides
-OPENAI_OCR_MODEL=gpt-4o-mini        # model for worksheet OCR
-MIRROR_MODEL_BACKEND=openai          # openai | huggingface | local_oss
+OPENAI_OCR_MODEL=gpt-4o-mini          # model for worksheet parsing
+MIRROR_MODEL_BACKEND=openai           # openai | huggingface | local_oss
 MIRROR_CORS_ORIGINS=http://localhost:3000
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
@@ -106,6 +108,7 @@ uv run uvicorn src.app:app --reload --port 8000
 ```
 
 Check it's alive:
+
 ```bash
 curl http://localhost:8000/api/health
 ```
@@ -122,135 +125,19 @@ Frontend runs at `http://localhost:3000`.
 
 ---
 
-## API reference
-
-### Worksheet
-
-```
-POST /api/worksheet/parse
-  multipart: file (PDF, PNG, JPG)
-  → { filename, worksheet_json, worksheet_text }
-```
-
-### Exercise generation
-
-```
-POST /api/exercises/generate
-  JSON: {
-    learner_name: str,
-    topic: str,
-    worksheet_json: dict,       # from /worksheet/parse
-    teacher_notes: str,
-    assignment_type: str,       # avatar_conversation | vocabulary_challenge | read_aloud_review | error_detective
-    feedback: str,              # optional — for regeneration
-    mode: str,                  # optional — which mode to regenerate
-    existing_prompts: dict,     # optional — preserve other modes on regen
-    retry_count: int,
-    chat_id: str                # optional — provide to reuse session
-  }
-  → {
-    chat_ids: { mode: chat_id },
-    avatar_prompts: { mode: prompt },
-    tasks: { mode: [{ title, description }] },
-    learner_name, topic
-  }
-```
-
-### Avatar session (Next.js API route)
-
-```
-POST /api/anam/session
-  JSON: { instructions: str }
-  → { sessionToken: str }
-```
-
-### Chat instructions (fetched by Next.js before Anam session)
-
-```
-GET /api/chat/get-user-chat-instructions
-  → { instructions: str }
-
-GET /api/chat/{chat_id}/instructions
-  → { instructions: str }
-```
-
-### Session completion + report
-
-```
-POST /api/chat/{chat_id}/complete
-  JSON: { messages: [{ role, content, interrupted }] }
-  → { analysis: str }
-
-POST /api/report/analyze
-  multipart: chat_id, transcript (optional), wav_file
-  → { chat_id, confidence_score, fluency_score, transcript, analysis }
-
-GET /api/report/{chat_id}/teacher
-  → { chat_id, confidence_score, fluency_score, transcript, analysis }
-```
-
----
-
 ## Exercise modes
 
-| Mode | Key | Avatar | What happens |
-|---|---|---|---|
-| Avatar Conversation | `avatar_conversation` | Sofia | Open spoken dialogue on lesson topic |
-| Vocabulary Challenge | `vocabulary_challenge` | Max | Avatar gives definitions, student produces words |
-| Read-Aloud Review | `read_aloud_review` | Priya | Student reads writing aloud, avatar gives feedback |
-| Error Detective | `error_detective` | Leo | Avatar reads sentences with deliberate errors, student corrects and explains the rule |
-
-**Error Detective is the primary demo mode** — 6 sentences, strict four-step loop, running score, final summary.
+| Mode | Key | What happens |
+|---|---|---|
+| Conversation | `avatar_conversation` | Open spoken dialogue on the lesson topic |
+| Vocabulary | `vocabulary_challenge` | Targeted vocabulary practice |
+| Dictation | `read_aloud_review` | Listening + transcription / read-aloud feedback |
+| Error Detective | `error_detective` | Student finds and fixes mistakes, explains rules |
 
 ---
 
-## Testing
+## What’s next
 
-```bash
-make test
-```
-
-All tests run offline (mocked API calls) except the end-to-end workflow test which requires `OPENAI_API_KEY` and is skipped by default.
-
----
-
-## Sharing publicly (demo day)
-
-Run both servers, then expose with ngrok:
-
-```bash
-# Terminal 1
-uv run uvicorn src.app:app --reload --port 8000
-
-# Terminal 2
-cd public && npm run dev
-
-# Terminal 3 — expose backend
-ngrok http 8000
-# copy the https URL, set as NEXT_PUBLIC_API_BASE_URL in public/.env.local
-
-# Terminal 4 — expose frontend
-ngrok http 3000
-# share this URL with judges
-```
-
----
-
-## Branch structure
-
-| Branch | Purpose |
-|---|---|
-| `main` | Stable only |
-| `dev` | Active integration work |
-| `feature/*` | Individual features |
-
----
-
-## What's next (post-hackathon)
-
-- RL reward signal — log `(mode, retry_count, feedback)` to DynamoDB, train bandit on teacher acceptance rate
-- Student session report — separate student-facing view from teacher report
-- Thymia integration on real Anam audio — currently tested with synthetic WAV
-- Vercel + AWS deployment — `Dockerfile` is ready
-- Streaming responses for faster avatar prompt generation
-- Multi-session memory — avatar remembers errors from previous sessions
+- **Homework Wrapped (monthly)** — student-facing recap of progress and stats over time
+- **More granular teacher analytics** — drilldown by skill/category
+- **Adaptive difficulty** — adjust tasks live using Thymia Helios signals
