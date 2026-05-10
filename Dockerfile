@@ -7,11 +7,6 @@ ENV APP_PORT=8000
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY pyproject.toml uv.lock ./
 
 RUN uv sync --all-groups --frozen --no-install-project

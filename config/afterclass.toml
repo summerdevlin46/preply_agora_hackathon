@@ -27,14 +27,10 @@ max_tokens = 1800
 temperature = 0.0
 
 [ocr]
-priority = ["pdf_text", "bedrock_vision", "mistral_ocr", "tesseract"]
+priority = ["pdf_text", "mistral_ocr"]
 
 [ocr.pdf_text]
 enabled = true
-
-[ocr.bedrock_vision]
-enabled = true
-provider = "bedrock"
 
 [ocr.mistral_ocr]
 enabled = true
@@ -42,8 +38,6 @@ api_key_env = "MISTRAL_API_KEY"
 ocr_model = "mistral-ocr-latest"
 chat_model = "mistral-small-latest"
 
-[ocr.tesseract]
-enabled = true
 
 [providers.bedrock]
 kind = "bedrock"

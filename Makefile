@@ -1,7 +1,6 @@
 .PHONY: help \
 	lock sync sync-all sync-dev sync-apple-local update clean test \
 	env-create env-check \
-	deps-check deps-install deps-uninstall setup setup-apple \
 	run run-dev run-share \
 	local-oss-serve local-oss-serve-tiny local-oss-serve-tinyllama \
 	docker-build docker-run docker-run-dev docker-shell
@@ -25,11 +24,6 @@ help:
 	@echo "  make test                  - Run tests"
 	@echo "  make env-create            - Create .env from .env.example"
 	@echo "  make env-check             - Check that .env exists"
-	@echo "  make deps-check            - Check host OCR system dependencies"
-	@echo "  make deps-install          - Install host OCR system dependencies"
-	@echo "  make deps-uninstall        - Remove host OCR system dependencies"
-	@echo "  make setup                 - Install host deps + all Python deps"
-	@echo "  make setup-apple           - Same as setup, including apple_local via all-groups"
 	@echo "  make run                   - Run the app on default port ($(APP_PORT))"
 	@echo "  make run-dev               - Run the app on dev port ($(DEV_PORT))"
 	@echo "  make run-share             - Run the app with Gradio share enabled"
@@ -78,18 +72,6 @@ env-create:
 env-check:
 	@test -f $(ENV_FILE) || (echo ".env file not found. Copy from .env.example"; exit 1)
 
-deps-check:
-	./scripts/system_deps.sh check
-
-deps-install:
-	./scripts/system_deps.sh install
-
-deps-uninstall:
-	./scripts/system_deps.sh uninstall
-
-setup: deps-install sync-all
-
-setup-apple: deps-install sync-all
 
 run: env-check
 	uv run python src/app.py --port $(APP_PORT)
