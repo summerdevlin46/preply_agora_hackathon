@@ -1,7 +1,7 @@
 """
 mirror/generation/cleanup.py
 
-Calls GPT-4o to generate four narrative avatar prompts + 3 student tasks
+Calls Claude on Bedrock to generate four narrative avatar prompts + 3 student tasks
 per mode in one shot, based on teacher notes and OCR worksheet JSON.
 
 Output keys match the frontend ASSIGNMENT_TYPES ids exactly:
@@ -10,13 +10,9 @@ Output keys match the frontend ASSIGNMENT_TYPES ids exactly:
 import json
 import logging
 
-from openai import OpenAI
-
-from mirror.config import get_env
+from mirror.models.bedrock_backend import generate_text
 
 logger = logging.getLogger(__name__)
-
-CLEANUP_MODEL = "gpt-4o"
 
 MODES = ["avatar_conversation", "vocabulary_challenge", "read_aloud_review", "error_detective"]
 
@@ -85,20 +81,6 @@ No preamble, no markdown fences, no explanation outside the JSON.
 """.strip()
 
 
-def _extract_text(response) -> str:
-    if hasattr(response, "output_text") and response.output_text:
-        return response.output_text
-    try:
-        return "".join(
-            block.text
-            for item in response.output
-            for block in item.content
-            if block.type == "output_text"
-        )
-    except Exception:
-        return str(response)
-
-
 def build_cleanup_user_message(
     teacher_notes: str,
     worksheet_json: dict,
@@ -131,8 +113,6 @@ def run_cleanup(
     Returns a dict with keys: avatar_conversation, vocabulary_challenge,
     read_aloud_review, error_detective, tasks.
     """
-    client = OpenAI(api_key=get_env("OPENAI_API_KEY"))
-
     user_message = build_cleanup_user_message(
         teacher_notes=teacher_notes,
         worksheet_json=worksheet_json,
@@ -140,20 +120,16 @@ def run_cleanup(
         mode=mode,
     )
 
-    full_input = f"{CLEANUP_SYSTEM_PROMPT}\n\n{user_message}"
-
     logger.info(
-        "Running cleanup model (model=%s, feedback=%s, mode=%s)",
-        CLEANUP_MODEL, bool(feedback), mode,
+        "Running cleanup model via Bedrock (feedback=%s, mode=%s)",
+        bool(feedback), mode,
     )
 
-    response = client.responses.create(
-        model=CLEANUP_MODEL,
-        input=full_input,
-        max_output_tokens=2500,
-    )
-
-    raw = _extract_text(response).strip()
+    raw = generate_text(
+        system_prompt=CLEANUP_SYSTEM_PROMPT,
+        user_message=user_message,
+        max_tokens=2500,
+    ).strip()
 
     # Strip markdown fences if model adds them anyway
     if raw.startswith("```"):

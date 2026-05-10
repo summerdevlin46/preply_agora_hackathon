@@ -22,6 +22,7 @@ const ASSIGNMENT_TYPES = [
     avatarVerb: "speaks with",
     mechanicLabel: "How the conversation works:",
     mechanic: "The avatar opens the session with a warm greeting and a context-setting question drawn from your worksheet. It listens to the student\u2019s full spoken response, mirrors key phrases back naturally, and gently recasts any errors before asking a follow-up \u2014 keeping the dialogue flowing in real-time turns until the topic is covered.",
+    tip: "Sofia waits for your complete answer before speaking. Take your time \u2014 there\u2019s no need to rush or interrupt.",
   },
   {
     id: "vocab",
@@ -35,6 +36,7 @@ const ASSIGNMENT_TYPES = [
     avatarVerb: "quizzes",
     mechanicLabel: "How the vocabulary drill works:",
     mechanic: "The avatar presents each target word through a spoken definition, an example context, or a fill-in-the-blank prompt. The student says the word aloud and uses it in a sentence \u2014 or types it in chat if unsure. The avatar confirms correct usage instantly or models the right form, then moves to the next word until the full set is drilled.",
+    tip: "Max won\u2019t show you anything visual \u2014 all clues are spoken. You can also type a word in the chat if you\u2019re unsure how to pronounce it.",
   },
   {
     id: "writing",
@@ -48,6 +50,7 @@ const ASSIGNMENT_TYPES = [
     avatarVerb: "coaches",
     mechanicLabel: "How the dictation works:",
     mechanic: "The avatar reads a sentence aloud \u2014 built from your worksheet\u2019s vocabulary and structures \u2014 and waits for the student to type it into the chat. After each entry, it highlights spelling or grammar slips with spoken feedback and re-reads the sentence if asked. At the end, it summarises recurring error patterns so the student knows what to review.",
+    tip: "Type into the chat exactly what you hear \u2014 don\u2019t edit as you go. Priya will give spoken corrections after each sentence.",
   },
   {
     id: "grammar",
@@ -61,6 +64,7 @@ const ASSIGNMENT_TYPES = [
     avatarVerb: "coaches",
     mechanicLabel: "How the error detection works:",
     mechanic: "The avatar reads a sentence containing a deliberate grammar mistake and challenges the student to spot and fix it \u2014 by voice or chat. Once the student responds, the avatar asks them to explain the underlying rule before confirming or clarifying it. Difficulty ramps up across rounds, reinforcing the target structures from your worksheet.",
+    tip: "Leo reads the full sentence first without signalling the error. Listen to the whole thing before deciding if it sounds right \u2014 just like you would in real life.",
   },
 ];
 
@@ -158,7 +162,13 @@ const HOW_STEPS = [
 ];
 
 const ACCEPT_TYPES = ".pdf,.jpg,.jpeg,.png,.docx,.doc";
-const DEMO_CHAT_ID = "chat_7f3k9m2q";
+
+const MODE_MAP = {
+  speaking: "avatar_conversation",
+  vocab: "vocabulary_challenge",
+  writing: "read_aloud_review",
+  grammar: "error_detective",
+};
 
 /* -- keyframes -- */
 const spin = keyframes`
@@ -1283,6 +1293,7 @@ export default function PreplyTeacherDashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(null);
+  const [chatId, setChatId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [launchCopied, setLaunchCopied] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -1370,9 +1381,82 @@ export default function PreplyTeacherDashboard() {
     if (!canGenerate) return;
     setIsGenerating(true);
     setGenerated(null);
-    await new Promise((r) => setTimeout(r, 2000));
-    setGenerated(DEMO_OUTPUTS[selectedType]);
-    setIsGenerating(false);
+    setChatId(null);
+
+    try {
+      const backendMode = MODE_MAP[selectedType];
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+      const topic = prompt.split(".")[0].trim().slice(0, 120) || prompt.slice(0, 80).trim();
+
+      // Parse a real uploaded file if one exists
+      let worksheetJson = null;
+      const realFile = files.find((f) => f.file instanceof File);
+      if (realFile) {
+        const formData = new FormData();
+        formData.append("file", realFile.file);
+        const parseRes = await fetch(`${apiBase}/api/worksheet/parse`, {
+          method: "POST",
+          body: formData,
+        });
+        if (parseRes.ok) {
+          const parseData = await parseRes.json();
+          worksheetJson = parseData.worksheet_json ?? null;
+        }
+      }
+
+      // No real file — build a minimal worksheet from teacher notes so the backend accepts it
+      if (!worksheetJson || Object.keys(worksheetJson).length === 0) {
+        worksheetJson = {
+          title: topic,
+          topic,
+          worksheet_type: "Teacher Notes",
+          level: "unknown",
+          instructions: [prompt],
+          sections: [],
+          answer_key: [],
+          notes: [prompt],
+          raw_text: prompt,
+        };
+      }
+
+      const response = await fetch(`${apiBase}/api/exercises/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacher_notes: prompt,
+          topic,
+          worksheet_json: worksheetJson,
+          mode: backendMode,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail ?? `Generate failed (${response.status})`);
+      }
+
+      const data = await response.json();
+      const avatarPrompt = data.avatar_prompts?.[backendMode] ?? "";
+      const rawTasks = data.tasks?.[backendMode] ?? [];
+      const returnedChatId = data.chat_ids?.[backendMode] ?? null;
+
+      const nameMatch = avatarPrompt.match(/^You are ([A-Z][a-z]+)/);
+      const avatarName = nameMatch ? nameMatch[1] : activeType?.label ?? "Mirror";
+
+      setChatId(returnedChatId);
+      setGenerated({
+        title: `${activeType?.label ?? "Session"}: ${data.topic}`,
+        objective: activeType?.mechanic ?? "",
+        avatar_name: avatarName,
+        avatar_prompt: avatarPrompt,
+        tasks: rawTasks.map((t) => ({ label: t.title, content: t.description })),
+        tip: activeType?.tip ?? "",
+      });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Generation failed. Check the backend is running.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = () => {
@@ -1384,14 +1468,15 @@ export default function PreplyTeacherDashboard() {
   };
 
   const handleLaunchSession = async () => {
-    const launchLink = `http://localhost:3000/chat/${DEMO_CHAT_ID}`;
-
+    if (!chatId) return;
+    const launchLink = `http://localhost:3000/chat/${chatId}`;
+    window.open(launchLink, "_blank");
     try {
       await navigator.clipboard.writeText(launchLink);
       setLaunchCopied(true);
       setTimeout(() => setLaunchCopied(false), 2000);
     } catch (err) {
-      // fail silently if clipboard access is unavailable
+      // clipboard may be unavailable
     }
   };
 
@@ -1403,12 +1488,13 @@ export default function PreplyTeacherDashboard() {
   };
 
   const handleOpenReport = async () => {
+    if (!chatId) return;
     setIsReportOpen(true);
     setIsReportLoading(true);
     setReportError("");
 
     try {
-      const report = await getTeacherReport(DEMO_CHAT_ID);
+      const report = await getTeacherReport(chatId);
       setReportData(report);
     } catch (err) {
       setReportData(null);

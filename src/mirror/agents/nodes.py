@@ -31,7 +31,7 @@ def cleanup_node(state: ExerciseState) -> ExerciseState:
             mode=mode,
             existing_prompts=existing_prompts,
         )
-    except RuntimeError as exc:
+    except Exception as exc:
         logger.error("Cleanup node failed: %s", exc)
         return {"error": str(exc)}
 

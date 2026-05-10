@@ -13,6 +13,7 @@ build/
 
 # Secrets
 .env
+.env.example
 
 # Tool caches
 .pytest_cache/

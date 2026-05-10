@@ -3,9 +3,7 @@ import logging
 import os
 from typing import Any
 
-from openai import OpenAI
-
-from mirror.config import get_env
+from mirror.models.bedrock_backend import BEDROCK_MODEL, generate_with_vision
 from mirror.ocr.cache import build_cache_key, load_cached_parse, save_cached_parse
 from mirror.ocr.file_types import is_pdf, is_supported_image, validate_uploaded_file
 from mirror.ocr.pdf_utils import image_file_to_data_url, pdf_to_page_data_urls
@@ -84,32 +82,13 @@ Example JSON:
 """.strip()
 
 
-def _build_content(data_urls: list[str]) -> list[dict[str, Any]]:
-    content: list[dict[str, Any]] = [
-        {
-            "type": "input_text",
-            "text": OCR_JSON_PROMPT,
-        }
-    ]
-
-    for url in data_urls:
-        content.append(
-            {
-                "type": "input_image",
-                "image_url": url,
-            }
-        )
-
-    return content
-
-
 def parse_worksheet_to_json(file) -> dict[str, Any]:
     """
-    Parse a worksheet file (PDF or image) into structured JSON using OpenAI Vision.
+    Parse a worksheet file (PDF or image) into structured JSON using Bedrock vision.
     Uses a local file-based cache keyed by file contents + model + prompt version.
     """
     path = validate_uploaded_file(file)
-    model = os.getenv("OPENAI_OCR_MODEL", "gpt-4o-mini")
+    model = os.getenv("BEDROCK_MODEL", BEDROCK_MODEL)
 
     cache_key = build_cache_key(
         path=path,
@@ -133,21 +112,13 @@ def parse_worksheet_to_json(file) -> dict[str, Any]:
             f"Unsupported file type: {path.suffix}. Please upload a PDF or image file."
         )
 
-    client = OpenAI(api_key=get_env("OPENAI_API_KEY"))
+    logger.info("Running vision parsing via Bedrock (model=%s)", model)
 
-    logger.info("Running vision parsing with model: %s", model)
-
-    response = client.responses.create(
+    text = generate_with_vision(
+        prompt=OCR_JSON_PROMPT,
+        data_urls=data_urls,
         model=model,
-        input=[
-            {
-                "role": "user",
-                "content": _build_content(data_urls),
-            }
-        ],
-    )
-
-    text = response.output_text.strip()
+    ).strip()
 
     try:
         parsed = json.loads(text)

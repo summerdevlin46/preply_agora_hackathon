@@ -165,28 +165,11 @@ Transcript:
 """
 
 
-def _extract_text(response) -> str:
-    if hasattr(response, "output_text") and response.output_text:
-        return response.output_text
-    try:
-        return "".join(
-            block.text
-            for item in response.output
-            for block in item.content
-            if block.type == "output_text"
-        )
-    except Exception:
-        return str(response)
-
-
 async def _generate_teacher_report(
     transcript: str,
     helios: HeliosResult,
 ) -> dict:
-    from openai import AsyncOpenAI
-    from mirror.config import get_env
-
-    client = AsyncOpenAI(api_key=get_env("OPENAI_API_KEY"))
+    from mirror.models.bedrock_backend import generate_text_async
 
     prompt = _TEACHER_REPORT_PROMPT.format(
         confidence=helios.confidence_score,
@@ -194,13 +177,13 @@ async def _generate_teacher_report(
         transcript=transcript.strip() or "No transcript available.",
     )
 
-    response = await client.responses.create(
-        model="gpt-4o",
-        input=prompt,
-        max_output_tokens=600,
-    )
-
-    raw = _extract_text(response).strip()
+    raw = (
+        await generate_text_async(
+            system_prompt="You are an expert EFL/ESL language coach generating a teacher report.",
+            user_message=prompt,
+            max_tokens=600,
+        )
+    ).strip()
 
     if raw.startswith("```"):
         raw = raw.split("```")[1]

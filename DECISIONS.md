@@ -87,7 +87,7 @@ We started with Gradio for rapid prototyping but switched to FastAPI + Next.js o
 ---
 
 ### 9. Error Detective as primary demo mode
-Of the four exercise modes, Error Detective is the most structured and robustly specified — 6 sentences, strict four-step loop, running score, final summary.
+Of the four exercise modes, Error Detective is the most structured and robustly specified — 8 sentences, strict four-step loop, running score, final summary.
 
 **Why:** It maps directly to worksheet content (grammar error types), produces measurable output (score), and demonstrates the avatar’s ability to wait, assess, and respond — the hardest Anam capabilities to showcase.
 
