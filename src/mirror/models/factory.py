@@ -2,63 +2,66 @@ import logging
 from importlib import import_module
 from typing import Optional
 
-from mirror.config import get_env
+from mirror.models.model_config import get_provider_runtime_config
+from mirror.models.provider_policy import select_provider
 
 logger = logging.getLogger(__name__)
 
 
-def generate_with_openai(prompt: str, model: Optional[str] = None) -> str:
-    backend = import_module("mirror.models.openai_backend")
-    return backend.generate_with_openai(prompt=prompt, model=model)
+def generate_with_backend(
+    prompt: str,
+    model: Optional[str] = None,
+    task: str = "default",
+    system_prompt: str = "You are an expert language tutor.",
+) -> str:
+    provider_name = select_provider()
+    provider = get_provider_runtime_config(provider_name, task=task)
 
-
-def generate_with_huggingface(prompt: str, model: Optional[str] = None) -> str:
-    backend = import_module("mirror.models.huggingface_backend")
-    return backend.generate_with_huggingface(prompt=prompt, model=model)
-
-
-def generate_with_local_oss(prompt: str, model: Optional[str] = None) -> str:
-    backend = import_module("mirror.models.local_oss_backend")
-    return backend.generate_with_local_oss(prompt=prompt, model=model)
-
-
-def generate_with_bedrock(prompt: str, model: Optional[str] = None) -> str:
-    backend = import_module("mirror.models.bedrock_backend")
-    return backend.generate_with_bedrock(prompt=prompt, model=model)
-
-
-def generate_with_backend(prompt: str, model: Optional[str] = None) -> str:
-    backend = get_env("MIRROR_MODEL_BACKEND", "bedrock").strip().lower()
-    logger.info("Using model backend: %s", backend)
+    logger.info(
+        "Using model provider: %s kind=%s task=%s",
+        provider_name,
+        provider.kind,
+        task,
+    )
 
     try:
-        if backend == "openai":
-            result = generate_with_openai(prompt=prompt, model=model)
-            logger.info("OpenAI generation succeeded")
-            return result
+        if provider.kind == "openai_compatible":
+            backend = import_module("mirror.models.openai_compatible_backend")
+            return backend.generate_with_openai_compatible(
+                prompt=prompt,
+                provider_name=provider_name,
+                model=model,
+                task=task,
+                system_prompt=system_prompt,
+            )
 
-        if backend == "huggingface":
-            result = generate_with_huggingface(prompt=prompt, model=model)
-            logger.info("Hugging Face generation succeeded")
-            return result
+        if provider.kind == "bedrock":
+            backend = import_module("mirror.models.bedrock_backend")
+            return backend.generate_with_bedrock(
+                prompt=prompt,
+                model=model,
+                task=task,
+                system_prompt=system_prompt,
+            )
 
-        if backend == "local_oss":
-            result = generate_with_local_oss(prompt=prompt, model=model)
-            logger.info("Local OSS generation succeeded")
-            return result
+        if provider.kind == "mistral":
+            backend = import_module("mirror.models.mistral_backend")
+            return backend.generate_with_mistral(
+                prompt=prompt,
+                provider_name=provider_name,
+                model=model,
+                task=task,
+                system_prompt=system_prompt,
+            )
 
-        if backend == "bedrock":
-            result = generate_with_bedrock(prompt=prompt, model=model)
-            logger.info("Bedrock generation succeeded")
-            return result
-
-        logger.error("Invalid model backend: %s", backend)
-        return "Invalid model backend configuration. Use 'bedrock', 'openai', 'huggingface', or 'local_oss'."
+        raise RuntimeError(
+            f"Invalid provider kind {provider.kind!r} for provider {provider_name!r}."
+        )
 
     except Exception as exc:
-        logger.exception("Model backend '%s' failed", backend)
+        logger.exception("Model provider '%s' failed", provider_name)
         return (
-            f"Model backend '{backend}' failed.\n"
+            f"Model provider '{provider_name}' failed.\n"
             f"Error: {exc}\n\n"
-            "Check AWS credentials/region, model ID, or other backend configuration."
+            "Check provider configuration, credentials, model ID, or local server status."
         )

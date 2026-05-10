@@ -1,0 +1,57 @@
+[model_routing]
+provider = "auto"
+priority = ["bedrock", "openai", "mistral", "local_oss"]
+
+[generation.default]
+max_tokens = 1200
+temperature = 0.2
+
+[generation.chat]
+max_tokens = 900
+temperature = 0.2
+
+[generation.exercise]
+max_tokens = 1800
+temperature = 0.3
+
+[generation.report]
+max_tokens = 1600
+temperature = 0.1
+
+[generation.cleanup]
+max_tokens = 2500
+temperature = 0.1
+
+[generation.ocr_structuring]
+max_tokens = 1800
+temperature = 0.0
+
+[providers.bedrock]
+kind = "bedrock"
+enabled = false
+model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+region = "us-east-1"
+
+[providers.openai]
+kind = "openai_compatible"
+enabled = true
+model = "gpt-5"
+api_key_env = "OPENAI_API_KEY"
+
+[providers.mistral]
+kind = "mistral"
+enabled = true
+model = "mistral-large-latest"
+api_key_env = "MISTRAL_API_KEY"
+
+[providers.openai.task_models]
+ocr = "gpt-4o-mini"
+exercise = "gpt-4o"
+
+[providers.local_oss]
+kind = "openai_compatible"
+enabled = true
+base_url = "http://127.0.0.1:8081/v1"
+model = "HuggingFaceTB/SmolLM2-360M-Instruct"
+api_key_env = "AFTERCLASS_LOCAL_OSS_API_KEY"
+api_key_default = "local-not-used"

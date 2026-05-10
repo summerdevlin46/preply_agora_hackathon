@@ -1,9 +1,11 @@
 import json
 import logging
-import os
 from typing import Any
 
-from mirror.models.bedrock_backend import BEDROCK_MODEL, generate_with_vision
+
+from mirror.models.bedrock_backend import generate_with_vision
+from mirror.models.model_config import get_provider_runtime_config
+
 from mirror.ocr.cache import build_cache_key, load_cached_parse, save_cached_parse
 from mirror.ocr.file_types import is_pdf, is_supported_image, validate_uploaded_file
 from mirror.ocr.pdf_utils import image_file_to_data_url, pdf_to_page_data_urls
@@ -88,7 +90,7 @@ def parse_worksheet_to_json(file) -> dict[str, Any]:
     Uses a local file-based cache keyed by file contents + model + prompt version.
     """
     path = validate_uploaded_file(file)
-    model = os.getenv("BEDROCK_MODEL", BEDROCK_MODEL)
+    model = get_provider_runtime_config("bedrock", task="ocr_structuring").model
 
     cache_key = build_cache_key(
         path=path,
