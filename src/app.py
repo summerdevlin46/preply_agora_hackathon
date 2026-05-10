@@ -22,8 +22,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="Mirror API",
-    description="HTTP API for worksheet parsing and exercise generation.",
+    title="AfterClass API",
+    description="HTTP API for worksheet parsing and AfterClass exercise generation.",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -45,7 +45,7 @@ app.include_router(report_router)
 @app.get("/", tags=["meta"])
 def root() -> dict[str, str]:
     return {
-        "name": "mirror-api",
+        "name": "afterclass-api",
         "docs": "/docs",
         "health": "/api/health",
     }
@@ -53,11 +53,12 @@ def root() -> dict[str, str]:
 
 if __name__ == "__main__":
     import argparse
+    import os
     import uvicorn
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=int(os.getenv("APP_PORT", "8000")))
+    parser.add_argument("--host", default=os.getenv("APP_HOST", "0.0.0.0"))
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
 
