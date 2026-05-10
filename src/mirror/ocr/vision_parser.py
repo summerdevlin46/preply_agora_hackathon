@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from mirror.models.bedrock_backend import BEDROCK_MODEL, generate_with_vision
@@ -11,6 +12,8 @@ from mirror.ocr.pdf_utils import image_file_to_data_url, pdf_to_page_data_urls
 logger = logging.getLogger(__name__)
 
 PROMPT_VERSION = "v2"
+MISTRAL_OCR_MODEL = "mistral-ocr-latest"
+MISTRAL_CHAT_MODEL = "mistral-small-latest"
 
 OCR_JSON_PROMPT = """
 You are an expert educational document parser.
@@ -82,17 +85,72 @@ Example JSON:
 """.strip()
 
 
-def parse_worksheet_to_json(file) -> dict[str, Any]:
-    """
-    Parse a worksheet file (PDF or image) into structured JSON using Bedrock vision.
-    Uses a local file-based cache keyed by file contents + model + prompt version.
-    """
-    path = validate_uploaded_file(file)
+def _parse_with_bedrock(path: Path) -> dict[str, Any]:
     model = os.getenv("BEDROCK_MODEL", BEDROCK_MODEL)
+
+    if is_pdf(path):
+        data_urls = pdf_to_page_data_urls(path)
+    elif is_supported_image(path):
+        data_urls = [image_file_to_data_url(path)]
+    else:
+        raise ValueError(f"Unsupported file type: {path.suffix}")
+
+    logger.info("Running vision parsing via Bedrock (model=%s)", model)
+    text = generate_with_vision(prompt=OCR_JSON_PROMPT, data_urls=data_urls, model=model).strip()
+    return json.loads(text)
+
+
+def _parse_with_mistral(path: Path) -> dict[str, Any]:
+    from mistralai import Mistral
+
+    api_key = os.environ["MISTRAL_API_KEY"]
+    client = Mistral(api_key=api_key)
+
+    ocr_model = os.getenv("MISTRAL_OCR_MODEL", MISTRAL_OCR_MODEL)
+    chat_model = os.getenv("MISTRAL_CHAT_MODEL", MISTRAL_CHAT_MODEL)
+
+    logger.info("Uploading file to Mistral OCR (model=%s)", ocr_model)
+    with open(path, "rb") as f:
+        uploaded = client.files.upload(
+            file={"file_name": path.name, "content": f},
+            purpose="ocr",
+        )
+
+    try:
+        signed = client.files.get_signed_url(file_id=uploaded.id)
+        ocr_resp = client.ocr.process(
+            model=ocr_model,
+            document={"type": "document_url", "document_url": signed.url},
+        )
+        # Strip backslashes from OCR output — LaTeX notation (e.g. \circ, \mathrm)
+        # produces invalid JSON escape sequences when the chat model echoes them back.
+        raw_text = "\n\n".join(page.markdown for page in ocr_resp.pages).replace("\\", "")
+    finally:
+        client.files.delete(file_id=uploaded.id)
+
+    logger.info("Structuring Mistral OCR output via chat (model=%s)", chat_model)
+    chat_resp = client.chat.complete(
+        model=chat_model,
+        messages=[{"role": "user", "content": f"{OCR_JSON_PROMPT}\n\n{raw_text}"}],
+    )
+    raw = chat_resp.choices[0].message.content.strip()
+    # strip markdown code fences if the model wrapped the JSON
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+    return json.loads(raw)
+
+
+def parse_worksheet_to_json(file) -> dict[str, Any]:
+    path = validate_uploaded_file(file)
+    bedrock_model = os.getenv("BEDROCK_MODEL", BEDROCK_MODEL)
+    mistral_model = os.getenv("MISTRAL_OCR_MODEL", MISTRAL_OCR_MODEL)
 
     cache_key = build_cache_key(
         path=path,
-        model=model,
+        model=f"{bedrock_model}+{mistral_model}",
         prompt_version=PROMPT_VERSION,
     )
 
@@ -103,31 +161,21 @@ def parse_worksheet_to_json(file) -> dict[str, Any]:
 
     logger.info("Cache miss for worksheet parse: %s", cache_key)
 
-    if is_pdf(path):
-        data_urls = pdf_to_page_data_urls(path)
-    elif is_supported_image(path):
-        data_urls = [image_file_to_data_url(path)]
-    else:
-        raise ValueError(
-            f"Unsupported file type: {path.suffix}. Please upload a PDF or image file."
-        )
-
-    logger.info("Running vision parsing via Bedrock (model=%s)", model)
-
-    text = generate_with_vision(
-        prompt=OCR_JSON_PROMPT,
-        data_urls=data_urls,
-        model=model,
-    ).strip()
+    parsed: dict[str, Any] | None = None
 
     try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError as exc:
-        logger.error("Vision parser returned invalid JSON:\n%s", text)
-        raise RuntimeError(
-            "Vision parser did not return valid JSON. "
-            "Check the OCR prompt or the selected OCR model."
-        ) from exc
+        parsed = _parse_with_bedrock(path)
+        logger.info("Bedrock parse succeeded")
+    except Exception as exc:
+        logger.warning("Bedrock parse failed (%s), trying Mistral fallback", exc)
+
+    if parsed is None:
+        if not os.getenv("MISTRAL_API_KEY"):
+            raise RuntimeError(
+                "Bedrock parse failed and MISTRAL_API_KEY is not set — no fallback available."
+            )
+        parsed = _parse_with_mistral(path)
+        logger.info("Mistral fallback parse succeeded")
 
     save_cached_parse(cache_key, parsed)
     logger.info("Saved worksheet parse to cache: %s", cache_key)
