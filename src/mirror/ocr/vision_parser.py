@@ -4,15 +4,11 @@ import os
 from pathlib import Path
 from typing import Any
 
-from mirror.models.bedrock_backend import generate_with_vision
 from mirror.models.factory import generate_with_backend
 from mirror.models.model_config import get_model_config, get_provider_runtime_config
-from mirror.models.provider_policy import is_provider_configured
 from mirror.ocr.cache import build_cache_key, load_cached_parse, save_cached_parse
 from mirror.ocr.file_types import is_pdf, is_supported_image, validate_uploaded_file
-from mirror.ocr.image_ocr import ocr_image, ocr_pdf
 from mirror.ocr.pdf_text import extract_text_from_pdf, looks_like_useful_text
-from mirror.ocr.pdf_utils import image_file_to_data_url, pdf_to_page_data_urls
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +98,7 @@ def _ocr_step_config(step_name: str) -> dict[str, Any]:
 def _ocr_priority() -> list[str]:
     configured = _ocr_config().get(
         "priority",
-        ["pdf_text", "bedrock_vision", "mistral_ocr", "tesseract"],
+        ["pdf_text", "mistral_ocr"],
     )
     return [str(item).strip() for item in configured if str(item).strip()]
 
@@ -176,49 +172,6 @@ def _parse_with_pdf_text(path: Path) -> dict[str, Any] | None:
     return _structure_raw_text(text)
 
 
-def _parse_with_tesseract(path: Path) -> dict[str, Any]:
-    logger.info("Parsing worksheet using local Tesseract OCR.")
-
-    if is_pdf(path):
-        text = ocr_pdf(path)
-    elif is_supported_image(path):
-        text = ocr_image(path)
-    else:
-        raise ValueError(f"Unsupported file type: {path.suffix}")
-
-    if not looks_like_useful_text(text):
-        raise RuntimeError("Tesseract OCR did not produce enough useful text.")
-
-    return _structure_raw_text(text)
-
-
-def _parse_with_bedrock_vision(path: Path) -> dict[str, Any]:
-    step_config = _ocr_step_config("bedrock_vision")
-    provider_name = str(step_config.get("provider", "bedrock"))
-
-    if not is_provider_configured(provider_name):
-        raise RuntimeError(f"Bedrock vision provider {provider_name!r} is not configured.")
-
-    provider = get_provider_runtime_config(provider_name, task="ocr_structuring")
-
-    if is_pdf(path):
-        data_urls = pdf_to_page_data_urls(path)
-    elif is_supported_image(path):
-        data_urls = [image_file_to_data_url(path)]
-    else:
-        raise ValueError(f"Unsupported file type: {path.suffix}")
-
-    logger.info("Parsing worksheet using Bedrock vision provider=%s model=%s", provider_name, provider.model)
-
-    text = generate_with_vision(
-        prompt=OCR_JSON_PROMPT,
-        data_urls=data_urls,
-        model=provider.model,
-        task="ocr_structuring",
-    ).strip()
-
-    return _parse_json_model_output(text)
-
 
 def _parse_with_mistral_ocr(path: Path) -> dict[str, Any]:
     step_config = _ocr_step_config("mistral_ocr")
@@ -288,14 +241,6 @@ def _cache_model_fingerprint() -> str:
         if not _is_step_enabled(step):
             continue
 
-        if step == "bedrock_vision":
-            provider_name = str(_ocr_step_config(step).get("provider", "bedrock"))
-            try:
-                provider = get_provider_runtime_config(provider_name, task="ocr_structuring")
-                parts.append(f"{step}:{provider.name}:{provider.model}")
-            except Exception:
-                parts.append(f"{step}:unconfigured")
-            continue
 
         if step == "mistral_ocr":
             config = _ocr_step_config(step)
@@ -307,9 +252,6 @@ def _cache_model_fingerprint() -> str:
 
         if step == "pdf_text":
             parts.append("pdf_text")
-
-        if step == "tesseract":
-            parts.append("tesseract")
 
     return "+".join(parts) or "ocr"
 
@@ -343,14 +285,10 @@ def parse_worksheet_to_json(file) -> dict[str, Any]:
                 if parsed is None:
                     continue
 
-            elif step == "bedrock_vision":
-                parsed = _parse_with_bedrock_vision(path)
 
             elif step == "mistral_ocr":
                 parsed = _parse_with_mistral_ocr(path)
 
-            elif step == "tesseract":
-                parsed = _parse_with_tesseract(path)
 
             else:
                 logger.warning("Unknown OCR step configured: %s", step)
