@@ -7,7 +7,7 @@
 	docker-build docker-run docker-run-dev docker-shell
 
 APP_NAME := mirror-app
-APP_PORT := 7860
+APP_PORT := 8000
 DEV_PORT := 7699
 ENV_FILE := .env
 

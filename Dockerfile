@@ -1,27 +1,27 @@
-FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System dependencies for OCR / PDF conversion
+# poppler-utils for PDF → image conversion (used by OCR pipeline)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency metadata first for better caching
+# Copy dependency metadata first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies from lockfile
-RUN uv sync --all-groups --frozen --no-install-project
+# Install dependencies from lockfile (no dev deps in prod)
+RUN uv sync --frozen --no-install-project
 
 # Copy application source
 COPY src ./src
-COPY tests ./tests
-COPY Makefile ./
 
-EXPOSE 7860
+# Create data directory for SQLite
+RUN mkdir -p /app/data
 
-CMD ["uv", "run", "python", "src/app.py", "--port", "7860"]
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
