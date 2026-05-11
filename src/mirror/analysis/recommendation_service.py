@@ -46,15 +46,68 @@ def _strip_json_fences(raw: str) -> str:
 
     return fenced
 
+def _normalize_report_key(key: str) -> str:
+    normalized = key.strip().lower().replace(" ", "_")
+
+    aliases = {
+        "error_summary": "error_summary",
+        "errors": "error_summary",
+        "strengths": "strengths",
+        "areas_to_improve": "areas_to_improve",
+        "area_to_improve": "areas_to_improve",
+        "suggested_next_topic": "suggested_next_topic",
+        "next_topic": "suggested_next_topic",
+    }
+
+    return aliases.get(normalized, normalized)
+
+
+def _parse_loose_report(raw: str) -> dict:
+    """
+    Fallback for weak/local models that return label-style text instead of JSON.
+
+    Example:
+      Error_summary: "I never eats breakfast."
+      Strengths: "..."
+    """
+    parsed: dict[str, str] = {}
+
+    for line in raw.splitlines():
+        if ":" not in line:
+            continue
+
+        key, value = line.split(":", 1)
+        normalized_key = _normalize_report_key(key)
+
+        if normalized_key not in {
+            "error_summary",
+            "strengths",
+            "areas_to_improve",
+            "suggested_next_topic",
+        }:
+            continue
+
+        parsed[normalized_key] = value.strip().strip('"').strip("'")
+
+    if not parsed:
+        raise RuntimeError("Recommendation generation failed: invalid JSON.")
+
+    return {
+        "error_summary": parsed.get("error_summary", ""),
+        "strengths": parsed.get("strengths", ""),
+        "areas_to_improve": parsed.get("areas_to_improve", ""),
+        "suggested_next_topic": parsed.get("suggested_next_topic", ""),
+    }
+
 
 def _parse_json(raw: str) -> dict:
     text = _strip_json_fences(raw)
 
     try:
         parsed = json.loads(text)
-    except json.JSONDecodeError as exc:
-        logger.error("Recommendation model returned invalid JSON:\n%s", raw)
-        raise RuntimeError("Recommendation generation failed: invalid JSON.") from exc
+    except json.JSONDecodeError:
+        logger.warning("Recommendation model returned non-JSON output; trying loose parser.")
+        return _parse_loose_report(raw)
 
     if not isinstance(parsed, dict):
         raise RuntimeError("Recommendation generation failed: expected JSON object.")
