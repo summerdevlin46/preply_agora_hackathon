@@ -4,84 +4,24 @@ import os
 from pathlib import Path
 from typing import Any
 
+from mirror.generation.prompt_loader import load_prompt_spec
 from mirror.models.factory import generate_with_backend
-from mirror.models.model_config import get_model_config, get_provider_runtime_config
+from mirror.models.model_config import get_model_config
 from mirror.ocr.cache import build_cache_key, load_cached_parse, save_cached_parse
+#TODO: what was is_supported_image? remove maybe
 from mirror.ocr.file_types import is_pdf, is_supported_image, validate_uploaded_file
 from mirror.ocr.pdf_text import extract_text_from_pdf, looks_like_useful_text
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "v3"
 
-OCR_JSON_PROMPT = """
-You are an expert educational document parser.
+OCR_PROMPT_NAME = "ocr_structuring"
+OCR_PROMPT_SPEC = load_prompt_spec(OCR_PROMPT_NAME)
 
-Extract this language-learning worksheet into structured JSON.
-
-Rules:
-- Return valid JSON only.
-- Do not wrap the JSON in markdown.
-- Do not summarize.
-- Do not invent text.
-- Preserve structure, numbering, and instructions.
-- Clean obvious OCR noise but keep wording faithful.
-- Preserve pedagogically meaningful sections.
-- If answer keys or model answers are present, include them.
-- If the level or topic is not explicit, infer only if it is obvious; otherwise use "unknown".
-
-Return this schema:
-{
-  "title": string,
-  "worksheet_type": string,
-  "level": string,
-  "topic": string,
-  "instructions": [string],
-  "sections": [
-    {
-      "heading": string,
-      "task_type": string,
-      "instructions": [string],
-      "items": [string],
-      "examples": [string]
-    }
-  ],
-  "answer_key": [string],
-  "notes": [string],
-  "raw_text": string
-}
-
-Example:
-
-Input worksheet snippet:
-"Complete the sentences with the correct form of the verb.
-1. She ____ to school every day.
-2. They ____ football on Sundays."
-
-Example JSON:
-{
-  "title": "Verb Practice",
-  "worksheet_type": "Grammar Worksheet",
-  "level": "unknown",
-  "topic": "unknown",
-  "instructions": ["Complete the sentences with the correct form of the verb."],
-  "sections": [
-    {
-      "heading": "Main Exercise",
-      "task_type": "Sentence Completion",
-      "instructions": ["Complete the sentences with the correct form of the verb."],
-      "items": [
-        "She ____ to school every day.",
-        "They ____ football on Sundays."
-      ],
-      "examples": []
-    }
-  ],
-  "answer_key": [],
-  "notes": [],
-  "raw_text": "Complete the sentences with the correct form of the verb. 1. She ____ to school every day. 2. They ____ football on Sundays."
-}
-""".strip()
+OCR_JSON_PROMPT = OCR_PROMPT_SPEC.content
+OCR_CACHE_PROMPT_VERSION = (
+    f"{OCR_PROMPT_SPEC.name}:{OCR_PROMPT_SPEC.version}:{OCR_PROMPT_SPEC.sha256[:12]}"
+)
 
 
 def _ocr_config() -> dict[str, Any]:
@@ -259,10 +199,18 @@ def _cache_model_fingerprint() -> str:
 def parse_worksheet_to_json(file) -> dict[str, Any]:
     path = validate_uploaded_file(file)
 
+
+    logger.info(
+        "Using OCR prompt name=%s version=%s sha=%s",
+        OCR_PROMPT_SPEC.name,
+        OCR_PROMPT_SPEC.version,
+        OCR_PROMPT_SPEC.sha256[:12],
+    )
+
     cache_key = build_cache_key(
         path=path,
         model=_cache_model_fingerprint(),
-        prompt_version=PROMPT_VERSION,
+        prompt_version=OCR_CACHE_PROMPT_VERSION,
     )
 
     cached = load_cached_parse(cache_key)

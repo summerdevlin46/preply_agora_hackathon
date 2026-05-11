@@ -23,6 +23,8 @@ from mirror.api.schemas import (
 )
 from mirror.generation.cleanup import MODES
 
+#TODO: Things are hardcoded as a backup. Need hardcoded mode maybe?
+#idk...
 _FALLBACK_PROMPTS = {
     "error_detective": (
         "You are Sofia, a sharp yet encouraging grammar coach for a B1 English student who has just worked through "

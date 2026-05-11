@@ -1,13 +1,4 @@
-"""
-mirror/api/report_routes.py
-
-Add to src/app.py:
-    from mirror.api.report_routes import router as report_router
-    app.include_router(report_router)
-"""
 import logging
-from pathlib import Path
-import tempfile
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -17,21 +8,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/report", tags=["report"])
 
 
-def _is_missing_config_error(exc: Exception) -> bool:
-    message = str(exc)
-    return (
-        "THYMIA_API_KEY" in message
-        or "OPENAI_API_KEY" in message
-        or "Missing required environment variable" in message
-    )
-
-
 class TeacherReportResponse(BaseModel):
     chat_id: str
-    confidence_score: float
-    fluency_score: float
+    confidence_score: float = 0.0
+    fluency_score: float = 0.0
     transcript: str
     analysis: str
+
+
+def _format_analysis(
+    *,
+    error_summary: str,
+    strengths: str,
+    areas_to_improve: str,
+    suggested_next_topic: str,
+) -> str:
+    return (
+        "Error summary:\n"
+        f"{error_summary or 'No specific errors identified.'}\n\n"
+        "Strengths:\n"
+        f"{strengths or 'No specific strengths identified.'}\n\n"
+        "Areas to improve:\n"
+        f"{areas_to_improve or 'No specific areas identified.'}\n\n"
+        "Suggested next topic:\n"
+        f"{suggested_next_topic or 'No suggestion available.'}"
+    )
 
 
 @router.post("/analyze", response_model=TeacherReportResponse)
@@ -39,87 +40,59 @@ class TeacherReportResponse(BaseModel):
 async def analyze_session(
     chat_id: str = Form(...),
     transcript: str = Form(default=""),
-    wav_file: UploadFile = File(...),
+    wav_file: UploadFile | None = File(default=None),
 ):
     """
-    Accepts WAV from Anam SDK.
-    Runs Thymia Helios and saves scores to session_analysis table.
-    Fires independently from complete_homework — both run after session ends.
+    Generate teacher-facing recommendations from the session transcript.
+
+    Audio biomarker analysis used to be handled by Thymia Helios, but that
+    integration is no longer required. wav_file is accepted for API compatibility
+    and ignored for now.
     """
-    from mirror.api.config_store import save_session_analysis, get_teacher_report
-
-    try:
-        from mirror.analysis.thymia_service import analyze_session as run_analysis
-    except ModuleNotFoundError as exc:
-        missing_module = exc.name or "unknown module"
-        logger.error("Optional report dependency is missing: %s", missing_module)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Report analysis is unavailable because an optional dependency is "
-                f"missing: {missing_module}. Install the audio dependencies first."
-            ),
-        ) from exc
-
-    suffix = Path(wav_file.filename or "session.wav").suffix or ".wav"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp_path = Path(tmp.name)
-        content = await wav_file.read()
-        tmp.write(content)
+    from mirror.api.config_store import get_teacher_report, save_session_analysis
+    from mirror.analysis.recommendation_service import analyze_session as run_analysis
 
     try:
         report = await run_analysis(
             chat_id=chat_id,
-            wav_path=str(tmp_path),
             transcript=transcript,
         )
-    except (ValueError, RuntimeError) as exc:
-        if _is_missing_config_error(exc):
-            logger.error("Report analysis configuration is missing: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Report analysis is unavailable: {exc}",
-            ) from exc
-        logger.error("Thymia analysis failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Thymia analysis failed: {exc}",
-        ) from exc
     except Exception as exc:
-        logger.error("Thymia analysis failed: %s", exc)
+        logger.error("Recommendation analysis failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Thymia analysis failed: {exc}",
-        )
-    finally:
-        tmp_path.unlink(missing_ok=True)
+            detail=f"Recommendation analysis failed: {exc}",
+        ) from exc
 
-    # Save Thymia scores to SQLite
-    save_session_analysis(
-        chat_id=chat_id,
-        confidence_score=report.confidence_score,
-        fluency_score=report.fluency_score,
-        raw_turns=report.raw_turns,
+    analysis = _format_analysis(
+        error_summary=report.error_summary,
+        strengths=report.strengths,
+        areas_to_improve=report.areas_to_improve,
+        suggested_next_topic=report.suggested_next_topic,
     )
 
-    # Merge with homework analysis if already saved by complete_homework
+    # Keep existing storage shape for compatibility.
+    # No biomarker provider is active, so scores are neutral placeholders.
+    save_session_analysis(
+        chat_id=chat_id,
+        confidence_score=0.0,
+        fluency_score=0.0,
+        raw_turns=[report.raw_recommendations],
+    )
+
     merged = get_teacher_report(chat_id) or {}
 
     return TeacherReportResponse(
         chat_id=chat_id,
-        confidence_score=report.confidence_score,
-        fluency_score=report.fluency_score,
+        confidence_score=0.0,
+        fluency_score=0.0,
         transcript=merged.get("transcript", transcript),
-        analysis=merged.get("analysis", "Analysis pending."),
+        analysis=merged.get("analysis", analysis),
     )
 
 
 @router.get("/{chat_id}/teacher", response_model=TeacherReportResponse)
 def get_teacher_report_endpoint(chat_id: str):
-    """
-    Merged teacher report — Thymia scores + GPT homework analysis.
-    Both complete_homework and /analyze must have run for a complete report.
-    """
     from mirror.api.config_store import get_teacher_report
 
     report = get_teacher_report(chat_id)
@@ -131,8 +104,8 @@ def get_teacher_report_endpoint(chat_id: str):
 
     return TeacherReportResponse(
         chat_id=report["chat_id"],
-        confidence_score=report["confidence_score"],
-        fluency_score=report["fluency_score"],
-        transcript=report["transcript"],
-        analysis=report["analysis"],
+        confidence_score=report.get("confidence_score", 0.0),
+        fluency_score=report.get("fluency_score", 0.0),
+        transcript=report.get("transcript", ""),
+        analysis=report.get("analysis", ""),
     )

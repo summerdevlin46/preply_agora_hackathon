@@ -68,3 +68,11 @@ base_url = "http://127.0.0.1:8081/v1"
 model = "HuggingFaceTB/SmolLM2-360M-Instruct"
 api_key_env = "AFTERCLASS_LOCAL_OSS_API_KEY"
 api_key_default = "local-not-used"
+
+[recommendations]
+enabled = true
+mode = "llm"
+
+[analysis.audio_biomarkers]
+enabled = false
+provider = "none"
