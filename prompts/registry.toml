@@ -1,0 +1,23 @@
+[ocr_structuring]
+active = "v3"
+description = "Convert worksheet OCR/PDF text into structured worksheet JSON."
+
+[ocr_structuring.versions.v1]
+file = "ocr_structuring/v1.md"
+notes = "Initial worksheet JSON extraction prompt."
+
+[ocr_structuring.versions.v2]
+file = "ocr_structuring/v2.md"
+notes = "Improved answer key and section preservation."
+
+[ocr_structuring.versions.v3]
+file = "ocr_structuring/v3.md"
+notes = "Moved to Mistral OCR + strict JSON structuring."
+
+[recommendation_report]
+active = "v1"
+description = "Generate teacher-facing post-session recommendations."
+
+[recommendation_report.versions.v1]
+file = "recommendation_report/v1.md"
+notes = "Transcript-only recommendation report."

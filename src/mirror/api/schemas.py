@@ -59,7 +59,8 @@ class ExerciseGenerationResponse(BaseModel):
     topic: str
     avatar_prompts: dict[str, str]
     tasks: dict[str, list[TaskItem]]
-
+    used_fallback: bool = False
+    warnings: list[str] = Field(default_factory=list)
 
 class HomeworkTranscriptMessage(BaseModel):
     role: str = Field(min_length=1, max_length=50)

@@ -10,7 +10,7 @@ Output keys match the frontend ASSIGNMENT_TYPES ids exactly:
 import json
 import logging
 
-from mirror.models.bedrock_backend import generate_text
+from mirror.models.factory import generate_with_backend
 
 logger = logging.getLogger(__name__)
 
@@ -121,14 +121,15 @@ def run_cleanup(
     )
 
     logger.info(
-        "Running cleanup model via Bedrock (feedback=%s, mode=%s)",
+        "Running cleanup model via configured provider (feedback=%s, mode=%s)",
         bool(feedback), mode,
     )
 
-    raw = generate_text(
+    #TODO: verify if max tokens is fetched from toml
+    raw = generate_with_backend(
+        prompt=user_message,
+        task="exercise",
         system_prompt=CLEANUP_SYSTEM_PROMPT,
-        user_message=user_message,
-        max_tokens=2500,
     ).strip()
 
     # Strip markdown fences if model adds them anyway

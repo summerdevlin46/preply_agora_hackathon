@@ -51,9 +51,9 @@ documents = [
   "python-docx>=1.1,<2",
 ]
 
-##apple_local = [
-##  "mlx-lm>=0.28,<1",
-##]
+apple_local = [
+  "mlx-lm>=0.28,<1",
+]
 
 #TODO: if doing local runs or better yet some sort of modeling directly...
 ###oss_local = [
