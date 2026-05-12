@@ -231,7 +231,7 @@ def save_session_analysis(
 def get_teacher_report(chat_id: str) -> Optional[dict]:
     """
     Merges homework_wrapped (transcript + GPT analysis)
-    with session_analysis (Thymia scores) into a single teacher report.
+    with session_analysis (non-Thymia/alt scores) into a single teacher report.
     Returns None if neither exists.
     """
     initialize_config_db()

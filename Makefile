@@ -28,6 +28,7 @@ help:
 	@echo "  make run-model         - Run local OpenAI-compatible MLX server"
 	@echo "  make run-model-tiny    - Run smaller SmolLM2 local model"
 	@echo "  make run-model-qwen    - Run stronger Qwen local model"
+	@echo "  make smoke-api         - Test FastAPI backend on $(APP_HOST):$(APP_PORT)"
 	@echo "  make docker-build      - Build backend Docker image"
 	@echo "  make docker-run        - Run backend Docker image"
 	@echo "  make docker-shell      - Open shell in backend Docker image"
@@ -75,6 +76,9 @@ run-model-tiny:
 
 run-model-qwen:
 	$(MAKE) run-model LOCAL_OSS_MODEL=Qwen/Qwen3-4B-Instruct-2507
+
+smoke-api:
+	uv run python scripts/smoke_backend.py
 
 docker-build:
 	docker build -t $(APP_NAME) .
