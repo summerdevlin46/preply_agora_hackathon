@@ -8,6 +8,7 @@ Output keys match the frontend ASSIGNMENT_TYPES ids exactly:
   avatar_conversation, vocabulary_challenge, read_aloud_review, error_detective
 """
 import json
+from mirror.utils.logging import preview_text
 import logging
 
 from mirror.models.factory import generate_with_backend
@@ -142,7 +143,7 @@ def run_cleanup(
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
-        logger.error("Cleanup model returned invalid JSON:\n%s", raw)
+        logger.error("Cleanup model returned invalid JSON:\n%s", preview_text(raw))
         raise RuntimeError("Cleanup model did not return valid JSON.") from exc
 
     # Validate prompts

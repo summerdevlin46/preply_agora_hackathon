@@ -11,6 +11,7 @@ from mirror.ocr.cache import build_cache_key, load_cached_parse, save_cached_par
 #TODO: what was is_supported_image? remove maybe
 from mirror.ocr.file_types import is_pdf, is_supported_image, validate_uploaded_file
 from mirror.ocr.pdf_text import extract_text_from_pdf, looks_like_useful_text
+from mirror.utils.logging import preview_text
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def _parse_json_model_output(raw: str) -> dict[str, Any]:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError as exc:
-        logger.error("Parser returned invalid JSON:\n%s", raw)
+        logger.error("Parser returned invalid JSON:\n%s", preview_text(raw))
         raise RuntimeError("Worksheet parser did not return valid JSON.") from exc
 
     if not isinstance(parsed, dict):
