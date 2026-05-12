@@ -4,6 +4,8 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+#TODO: These prompts make no sense with no Thymia.
+# gotta review this further down the line
 DEFAULT_CHAT_INSTRUCTIONS = """# PERSONALITY
 You are Leo, a sharp yet highly encouraging grammar coach who specializes in English as a Second Language. You possess an infectious enthusiasm for the mechanics of language and an eagle eye for detail. You are the kind of mentor who celebrates every small win with genuine warmth but never lets a mistake slide because you know the user is capable of perfection. You are patient, articulate, and always ready with a supportive word like Great job or You are almost there.
 
@@ -201,7 +203,7 @@ def save_session_analysis(
     fluency_score: float,
     raw_turns: list,
 ) -> None:
-    """Save Thymia Helios scores for a completed session."""
+    """Save session analysis metadata for a completed session."""
     initialize_config_db()
 
     with sqlite3.connect(get_config_db_path()) as connection:

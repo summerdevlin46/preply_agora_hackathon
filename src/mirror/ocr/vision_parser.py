@@ -108,8 +108,17 @@ def _parse_with_pdf_text(path: Path) -> dict[str, Any] | None:
         logger.info("PDF text extraction did not produce enough useful text.")
         return None
 
+
     logger.info("Parsing worksheet using embedded PDF text.")
-    return _structure_raw_text(text)
+    
+    try:
+        return _structure_raw_text(text)
+    except Exception as exc:
+        logger.warning(
+            "PDF text structuring failed; falling back to minimal worksheet JSON: %s",
+            exc,
+        )
+        return _minimal_worksheet_json(text)
 
 
 
@@ -194,6 +203,29 @@ def _cache_model_fingerprint() -> str:
             parts.append("pdf_text")
 
     return "+".join(parts) or "ocr"
+
+def _minimal_worksheet_json(raw_text: str) -> dict[str, Any]:
+    return {
+        "title": "Unknown Worksheet",
+        "worksheet_type": "unknown",
+        "level": "unknown",
+        "topic": "unknown",
+        "instructions": [],
+        "sections": [
+            {
+                "heading": "Extracted Text",
+                "task_type": "unknown",
+                "instructions": [],
+                "items": [raw_text],
+                "examples": [],
+            }
+        ],
+        "answer_key": [],
+        "notes": [
+            "Structured parsing failed; using raw extracted PDF text fallback."
+        ],
+        "raw_text": raw_text,
+    }
 
 
 def parse_worksheet_to_json(file) -> dict[str, Any]:

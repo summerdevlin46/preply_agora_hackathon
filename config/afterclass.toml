@@ -26,8 +26,14 @@ temperature = 0.1
 max_tokens = 1800
 temperature = 0.0
 
+[generation.fallback]
+enabled = true
+file = "config/demo_fallbacks/cooking_present_continuous.json"
+description = "Demo fallback for cooking + present continuous."
+
 [ocr]
-priority = ["pdf_text", "mistral_ocr"]
+###priority = ["pdf_text", "mistral_ocr"]  # only using pdf while they fix mistral
+priority = ["pdf_text"]
 
 [ocr.pdf_text]
 enabled = true

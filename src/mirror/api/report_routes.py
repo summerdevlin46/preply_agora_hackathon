@@ -45,9 +45,8 @@ async def analyze_session(
     """
     Generate teacher-facing recommendations from the session transcript.
 
-    Audio biomarker analysis used to be handled by Thymia Helios, but that
-    integration is no longer required. wav_file is accepted for API compatibility
-    and ignored for now.
+    Audio biomarker analysis is currently disabled.
+    wav_file is accepted for API compatibility and ignored for now.
     """
     from mirror.api.config_store import get_teacher_report, save_session_analysis
     from mirror.analysis.recommendation_service import analyze_session as run_analysis
