@@ -48,6 +48,7 @@ def generate_with_mistral(
         ],
         max_tokens=generation.max_tokens,
         temperature=generation.temperature,
+        response_format={"type": "json_object"},
     )
 
     return response.choices[0].message.content or ""

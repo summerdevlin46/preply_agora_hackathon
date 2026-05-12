@@ -12,10 +12,10 @@ Improve it by:
 Keep it concise (3–5 sentences max). Return ONLY the improved context text — no preamble, no labels, no explanation.`;
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPEN_API_KEY;
+  const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Missing OPEN_API_KEY environment variable" },
+      { error: "Missing MISTRAL_API_KEY environment variable" },
       { status: 500 },
     );
   }
@@ -32,15 +32,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      max_tokens: 1000,
+      model: "mistral-large-latest",
+      max_tokens: 500,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `Teacher's original context:\n"${prompt}"` },
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   if (!response.ok) {
     const err = await response.text().catch(() => "Unknown error");
     return NextResponse.json(
-      { error: `OpenAI request failed: ${err}` },
+      { error: `Mistral request failed: ${err}` },
       { status: response.status },
     );
   }

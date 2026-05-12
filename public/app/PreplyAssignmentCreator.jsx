@@ -205,29 +205,13 @@ export default function PreplyAssignmentCreator() {
     setIsOptimizing(true);
     setOptimized(false);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/optimize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are an expert language teaching assistant. A teacher has written a brief lesson context note to help generate a homework assignment for their student. Your job is to rewrite it into a clear, structured, and specific lesson context that will produce a better AI-generated assignment.
-
-Improve it by:
-- Specifying the grammar focus (tense, structure)
-- Listing key vocabulary explicitly  
-- Noting the student's proficiency level (CEFR if inferable)
-- Mentioning any topics, themes or activities covered
-- Adding any useful detail that would help an AI tailor an avatar session
-
-Keep it concise (3–5 sentences max). Return ONLY the improved context text — no preamble, no labels, no explanation.`,
-          messages: [
-            { role: "user", content: `Teacher's original context:\n"${prompt}"` },
-          ],
-        }),
+        body: JSON.stringify({ prompt }),
       });
       const data = await response.json();
-      const improved = data.content?.find(b => b.type === "text")?.text?.trim();
+      const improved = data.improved?.trim();
       if (improved) {
         setPrompt(improved);
         setOptimized(true);

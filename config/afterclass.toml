@@ -41,9 +41,9 @@ chat_model = "mistral-small-latest"
 
 [providers.bedrock]
 kind = "bedrock"
-enabled = false
-model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-region = "us-east-1"
+enabled = true
+model = "us.anthropic.claude-sonnet-4-6"
+region = "us-east-2"
 
 [providers.openai]
 kind = "openai_compatible"

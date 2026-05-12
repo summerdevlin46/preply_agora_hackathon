@@ -65,7 +65,9 @@ const DEFAULT_INTRO_TIP =
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
-    return error.message;
+    const cause = (error as Error & { cause?: unknown }).cause;
+    const causeStr = cause ? ` (${String(cause)})` : "";
+    return `${error.message}${causeStr}`;
   }
 
   return "Something went wrong while setting up the Anam session.";
@@ -333,8 +335,7 @@ const MessagesWrap = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 32rem;
-  min-height: 24rem;
+  height: 32rem;
   overflow-y: auto;
   background: #FAFAFA;
   border: 2px solid #dad9de;
@@ -715,6 +716,7 @@ export default function ChatPageClient({
   const cleanupRef = useRef<(() => void) | null>(null);
   const chatSectionRef = useRef<HTMLElement | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const isFinalizingRef = useRef(false);
   const hasFinalizedRef = useRef(false);
   const recorderRef = useRef<RecorderState | null>(null);
@@ -745,6 +747,10 @@ export default function ChatPageClient({
 
   useEffect(() => {
     messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
@@ -1305,6 +1311,7 @@ export default function ChatPageClient({
                     : "Start the session and speak to begin. Your conversation will appear here."}
                 </EmptyMessages>
               )}
+              <div ref={messagesEndRef} />
             </MessagesWrap>
 
             {interactionMode === "message" ? (
