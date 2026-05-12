@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiBaseUrl, getAppBaseUrl } from "@/lib/api";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { getTeacherReport } from "@/lib/chat-instructions";
 import {
@@ -170,6 +170,14 @@ const MODE_MAP = {
   writing: "read_aloud_review",
   grammar: "error_detective",
 };
+
+const DEMO_FILE = {
+  file: { name: "SV-Cooking-Present-Continuous.pdf", size: 812400 },
+  id: "demo-file",
+};
+
+const DEMO_PROMPT =
+  "Student practised present continuous using a cooking-themed worksheet. They know vocabulary: fry, bake, boil, whisk, chop, grill, pour, mix, pan, pot, spatula, cutting board. Level B1.";
 
 /* -- keyframes -- */
 const spin = keyframes`
@@ -1289,8 +1297,8 @@ function buildStudentAnalysisRows(studentAnalysis) {
 /* -- component -- */
 export default function PreplyTeacherDashboard() {
   const [selectedType, setSelectedType] = useState("speaking");
-  const [prompt, setPrompt] = useState("");
-  const [files, setFiles] = useState([]);
+  const [prompt, setPrompt] = useState(DEMO_PROMPT);
+  const [files, setFiles] = useState([DEMO_FILE]);
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(null);
@@ -1310,11 +1318,6 @@ export default function PreplyTeacherDashboard() {
     studentAnalysis: true,
   });
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    setFiles([{ file: { name: "SV-Cooking-Present-Continuous.pdf", size: 812400 }, id: "demo-file" }]);
-    setPrompt("Student practised present continuous using a cooking-themed worksheet. They know vocabulary: fry, bake, boil, whisk, chop, grill, pour, mix, pan, pot, spatula, cutting board. Level B1.");
-  }, []);
 
   const selectType = (id) => {
     setSelectedType(id);
