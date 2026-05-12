@@ -1,5 +1,6 @@
 "use client";
 
+import { getApiBaseUrl, getAppBaseUrl } from "@/lib/api";
 import { useState, useRef, useCallback, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { getTeacherReport } from "@/lib/chat-instructions";
@@ -1294,6 +1295,7 @@ export default function PreplyTeacherDashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState(null);
   const [chatId, setChatId] = useState(null);
+  const [generationWarnings, setGenerationWarnings] = useState([]);
   const [copied, setCopied] = useState(false);
   const [launchCopied, setLaunchCopied] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -1378,86 +1380,91 @@ export default function PreplyTeacherDashboard() {
   };
 
   const handleGenerate = async () => {
-    if (!canGenerate) return;
-    setIsGenerating(true);
-    setGenerated(null);
-    setChatId(null);
+  if (!canGenerate) return;
+  setIsGenerating(true);
+  setGenerated(null);
+  setChatId(null);
+  setGenerationWarnings([]);
 
-    try {
-      const backendMode = MODE_MAP[selectedType];
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
-      const topic = prompt.split(".")[0].trim().slice(0, 120) || prompt.slice(0, 80).trim();
+  try {
+    const backendMode = MODE_MAP[selectedType];
+    const apiBase = getApiBaseUrl();
+    const topic = prompt.split(".")[0].trim().slice(0, 120) || prompt.slice(0, 80).trim();
 
-      // Parse a real uploaded file if one exists
-      let worksheetJson = null;
-      const realFile = files.find((f) => f.file instanceof File);
-      if (realFile) {
-        const formData = new FormData();
-        formData.append("file", realFile.file);
-        const parseRes = await fetch(`${apiBase}/api/worksheet/parse`, {
-          method: "POST",
-          body: formData,
-        });
-        if (parseRes.ok) {
-          const parseData = await parseRes.json();
-          worksheetJson = parseData.worksheet_json ?? null;
-        }
-      }
-
-      // No real file — build a minimal worksheet from teacher notes so the backend accepts it
-      if (!worksheetJson || Object.keys(worksheetJson).length === 0) {
-        worksheetJson = {
-          title: topic,
-          topic,
-          worksheet_type: "Teacher Notes",
-          level: "unknown",
-          instructions: [prompt],
-          sections: [],
-          answer_key: [],
-          notes: [prompt],
-          raw_text: prompt,
-        };
-      }
-
-      const response = await fetch(`${apiBase}/api/exercises/generate`, {
+    // Parse a real uploaded file if one exists
+    let worksheetJson = null;
+    const realFile = files.find((f) => f.file instanceof File);
+    if (realFile) {
+      const formData = new FormData();
+      formData.append("file", realFile.file);
+      const parseRes = await fetch(`${apiBase}/api/worksheet/parse`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teacher_notes: prompt,
-          topic,
-          worksheet_json: worksheetJson,
-          mode: backendMode,
-        }),
+        body: formData,
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail ?? `Generate failed (${response.status})`);
+      if (parseRes.ok) {
+        const parseData = await parseRes.json();
+        worksheetJson = parseData.worksheet_json ?? null;
       }
-
-      const data = await response.json();
-      const avatarPrompt = data.avatar_prompts?.[backendMode] ?? "";
-      const rawTasks = data.tasks?.[backendMode] ?? [];
-      const returnedChatId = data.chat_ids?.[backendMode] ?? null;
-
-      const nameMatch = avatarPrompt.match(/^You are ([A-Z][a-z]+)/);
-      const avatarName = nameMatch ? nameMatch[1] : activeType?.label ?? "Mirror";
-
-      setChatId(returnedChatId);
-      setGenerated({
-        title: `${activeType?.label ?? "Session"}: ${data.topic}`,
-        objective: activeType?.mechanic ?? "",
-        avatar_name: avatarName,
-        avatar_prompt: avatarPrompt,
-        tasks: rawTasks.map((t) => ({ label: t.title, content: t.description })),
-        tip: activeType?.tip ?? "",
-      });
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Generation failed. Check the backend is running.");
-    } finally {
-      setIsGenerating(false);
     }
-  };
+
+    // No real file — build a minimal worksheet from teacher notes so the backend accepts it
+    if (!worksheetJson || Object.keys(worksheetJson).length === 0) {
+      worksheetJson = {
+        title: topic,
+        topic,
+        worksheet_type: "Teacher Notes",
+        level: "unknown",
+        instructions: [prompt],
+        sections: [],
+        answer_key: [],
+        notes: [prompt],
+        raw_text: prompt,
+      };
+    }
+
+    const response = await fetch(`${apiBase}/api/exercises/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        teacher_notes: prompt,
+        topic,
+        worksheet_json: worksheetJson,
+        mode: backendMode,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail ?? `Generate failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    setGenerationWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+
+    const avatarPrompt = data.avatar_prompts?.[backendMode] ?? "";
+    const rawTasks = data.tasks?.[backendMode] ?? [];
+    const returnedChatId = data.chat_ids?.[backendMode] ?? null;
+
+    const nameMatch = avatarPrompt.match(/^You are ([A-Z][a-z]+)/);
+    const avatarName = nameMatch ? nameMatch[1] : activeType?.label ?? "Mirror";
+
+    setChatId(returnedChatId);
+    setGenerated({
+      title: `${activeType?.label ?? "Session"}: ${data.topic}`,
+      objective: activeType?.mechanic ?? "",
+      avatar_name: avatarName,
+      avatar_prompt: avatarPrompt,
+      tasks: rawTasks.map((t) => ({ label: t.title, content: t.description })),
+      tip: activeType?.tip ?? "",
+    });
+  } catch (err) {
+    alert(err instanceof Error ? err.message : "Generation failed. Check the backend is running.");
+  } finally {
+    setIsGenerating(false);
+  }
+};
+
+
 
   const handleCopy = () => {
     if (!generated) return;
@@ -1469,7 +1476,7 @@ export default function PreplyTeacherDashboard() {
 
   const handleLaunchSession = async () => {
     if (!chatId) return;
-    const launchLink = `http://localhost:3000/chat/${chatId}`;
+    const launchLink = `${getAppBaseUrl()}/chat/${chatId}`;
     window.open(launchLink, "_blank");
     try {
       await navigator.clipboard.writeText(launchLink);
@@ -1730,6 +1737,23 @@ export default function PreplyTeacherDashboard() {
             {/* Body */}
             <div style={{ padding: "24px" }}>
               <h3 style={{ fontFamily: "inherit", fontSize: 18, fontWeight: 500, letterSpacing: "0.04em", margin: "0 0 6px", color: "#000" }}>{generated.title}</h3>
+              {generationWarnings.length > 0 && (
+                <div style={{
+                  background: "#fff7c1",
+                  border: "2px solid #000",
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  margin: "0 0 16px",
+                  fontFamily: "'PreplyInter', sans-serif",
+                  fontSize: 12,
+                  color: "#000",
+                  lineHeight: 1.5,
+                }}>
+                  {generationWarnings.map((warning, index) => (
+                    <div key={index}>{warning}</div>
+                  ))}
+                </div>
+              )}
               <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 13, color: "#4B5563", lineHeight: 1.65, margin: "0 0 20px" }}><strong style={{ color: "#000" }}>Objective:</strong> {generated.objective}</p>
 
               {/* System prompt box */}
@@ -1790,7 +1814,7 @@ export default function PreplyTeacherDashboard() {
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
               <div>
                 <h3 style={{ fontFamily: "inherit", fontSize: 20, fontWeight: 500, letterSpacing: "0.04em", color: "#000", margin: 0 }}>Lesson Report</h3>
-                <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>Transcript, overview, and student analysis for chat `{DEMO_CHAT_ID}`.</p>
+                <p style={{ fontFamily: "'PreplyInter', sans-serif", fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>Transcript, overview, and student analysis for this session.</p>
               </div>
               <ModalClose onClick={handleCloseReport}><X size={18} /></ModalClose>
             </div>

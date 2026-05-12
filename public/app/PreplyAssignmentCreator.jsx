@@ -332,7 +332,7 @@ Keep it concise (3–5 sentences max). Return ONLY the improved context text —
                 <span style={S.step}>1</span>
                 <div>
                   <h2 style={S.cardTitle}>Lesson Worksheet</h2>
-                  <p style={S.cardDesc}>Upload the materials from today's class</p>
+                  <p style={S.cardDesc}>Upload the materials from today&apos;s class</p>
                 </div>
               </div>
               <div
