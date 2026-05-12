@@ -14,6 +14,7 @@ RUN uv sync --all-groups --frozen --no-install-project
 COPY src ./src
 COPY schema ./schema
 COPY config ./config
+COPY prompts ./prompts
 COPY data ./data
 
 EXPOSE ${APP_PORT}

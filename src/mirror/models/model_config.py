@@ -46,6 +46,24 @@ def _load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as file:
         return tomllib.load(file)
 
+def _configured_value(
+    provider: dict[str, Any],
+    key: str,
+    default: str | None = None,
+) -> str | None:
+    env_key = provider.get(f"{key}_env")
+    if env_key:
+        env_value = os.getenv(str(env_key))
+        if env_value and env_value.strip():
+            return env_value.strip()
+
+    value = provider.get(key, default)
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    return text or None
+
 
 def _config_path() -> Path:
     configured = os.getenv("AFTERCLASS_CONFIG_PATH")
@@ -114,17 +132,6 @@ def get_provider_config(provider_name: str) -> dict[str, Any]:
     return provider
 
 
-def get_provider_model(provider_name: str, task: str = "default") -> str | None:
-    provider = get_provider_config(provider_name)
-
-    task_model_key = f"{task}_model"
-    if task_model_key in provider:
-        return str(provider[task_model_key])
-
-    model = provider.get("model")
-    return str(model) if model else None
-
-
 def get_provider_api_key(provider_name: str) -> str | None:
     provider = get_provider_config(provider_name)
 
@@ -143,24 +150,37 @@ def get_provider_api_key(provider_name: str) -> str | None:
 def get_local_oss_settings() -> LocalOssSettings:
     provider = get_provider_config("local_oss")
 
-    api_key_env = str(provider.get("api_key_env", "AFTERCLASS_LOCAL_OSS_API_KEY"))
-    api_key_default = str(provider.get("api_key_default", "local-not-used"))
+    base_url = _configured_value(
+        provider,
+        "base_url",
+        "http://127.0.0.1:8081/v1",
+    )
+    model = _configured_value(
+        provider,
+        "model",
+        "HuggingFaceTB/SmolLM2-360M-Instruct",
+    )
+    api_key = get_provider_api_key("local_oss") or "local-not-used"
+
+    if not base_url or not model:
+        raise RuntimeError("local_oss provider is missing base_url or model.")
 
     return LocalOssSettings(
-        base_url=str(provider.get("base_url", "http://127.0.0.1:8081/v1")),
-        api_key=os.getenv(api_key_env, api_key_default),
-        model=str(provider.get("model", "HuggingFaceTB/SmolLM2-360M-Instruct")),
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
     )
+
 
 def get_task_model(provider_name: str, task: str = "default") -> str | None:
     provider = get_provider_config(provider_name)
 
     task_models = provider.get("task_models", {})
     if isinstance(task_models, dict) and task in task_models:
-        return str(task_models[task])
+        value = task_models[task]
+        return str(value).strip() if value else None
 
-    model = provider.get("model")
-    return str(model) if model else None
+    return _configured_value(provider, "model")
 
 def get_provider_runtime_config(
     provider_name: str,
@@ -168,27 +188,22 @@ def get_provider_runtime_config(
 ) -> ProviderRuntimeConfig:
     provider = get_provider_config(provider_name)
 
+    if not provider:
+        raise RuntimeError(f"Provider '{provider_name}' is not configured.")
+
     kind = str(provider.get("kind", provider_name)).strip().lower()
     enabled = bool(provider.get("enabled", True))
 
-    api_key_env = provider.get("api_key_env")
-    api_key_default = provider.get("api_key_default")
-
-    api_key = None
-    if api_key_env:
-        api_key = os.getenv(str(api_key_env))
-
-    if not api_key and api_key_default:
-        api_key = str(api_key_default)
-
-    model = get_task_model(provider_name, task) or str(provider.get("model", ""))
+    model = get_task_model(provider_name, task) or _configured_value(provider, "model")
+    if not model:
+        raise RuntimeError(f"Provider '{provider_name}' has no model configured.")
 
     return ProviderRuntimeConfig(
         name=provider_name,
         kind=kind,
         enabled=enabled,
         model=model,
-        base_url=str(provider["base_url"]) if provider.get("base_url") else None,
-        api_key=api_key,
-        region=str(provider["region"]) if provider.get("region") else None,
+        base_url=_configured_value(provider, "base_url"),
+        api_key=get_provider_api_key(provider_name),
+        region=_configured_value(provider, "region"),
     )

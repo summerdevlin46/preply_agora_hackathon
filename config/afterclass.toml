@@ -71,6 +71,7 @@ exercise = "gpt-4o"
 kind = "openai_compatible"
 enabled = true
 base_url = "http://127.0.0.1:8081/v1"
+base_url_env = "AFTERCLASS_LOCAL_OSS_BASE_URL"
 model = "HuggingFaceTB/SmolLM2-360M-Instruct"
 api_key_env = "AFTERCLASS_LOCAL_OSS_API_KEY"
 api_key_default = "local-not-used"
