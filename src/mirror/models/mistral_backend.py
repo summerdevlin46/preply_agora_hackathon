@@ -40,14 +40,19 @@ def generate_with_mistral(
 
     client = Mistral(api_key=provider.api_key)
 
-    response = client.chat.complete(
-        model=selected_model,
-        messages=[
+    request_kwargs = {
+        "model": selected_model,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ],
-        max_tokens=generation.max_tokens,
-        temperature=generation.temperature,
-    )
+        "max_tokens": generation.max_tokens,
+        "temperature": generation.temperature,
+    }
+
+    if task in {"exercise", "report", "ocr_structuring", "cleanup"}:
+        request_kwargs["response_format"] = {"type": "json_object"}
+
+    response = client.chat.complete(**request_kwargs)
 
     return response.choices[0].message.content or ""
