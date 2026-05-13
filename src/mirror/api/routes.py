@@ -85,12 +85,11 @@ def read_chat_session(chat_id: str) -> ChatSessionResponse:
     "/chat/{chat_id}/complete",
     response_model=HomeworkCompletionResponse,
 )
-def complete_chat_homework(
+async def complete_chat_homework(
     chat_id: str,
     payload: HomeworkCompletionRequest,
 ) -> HomeworkCompletionResponse:
-    return complete_homework(chat_id, payload)
-
+    return await complete_homework(chat_id, payload)
 
 @router.post("/worksheet/parse", response_model=WorksheetParseResponse)
 async def parse_worksheet(file: UploadFile = File(...)) -> WorksheetParseResponse:
