@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+import mirror.config  # loads .env before any other imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

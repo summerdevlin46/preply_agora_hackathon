@@ -21,3 +21,20 @@ description = "Generate teacher-facing post-session recommendations."
 [recommendation_report.versions.v1]
 file = "recommendation_report/v1.md"
 notes = "Transcript-only recommendation report."
+
+[cleanup_single_mode]
+active = "v1"
+description = "Generate one worksheet-grounded AfterClass avatar prompt and three student-facing tasks."
+
+[cleanup_single_mode.versions.v1]
+file = "cleanup_single_mode/v1.md"
+notes = "Single-mode avatar prompt generation with worksheet-grounded mode instructions."
+
+#NOTE possibly deprecated
+###[cleanup_avatar_prompts]
+###active = "v1"
+###description = "Generate all four AfterClass avatar session prompts and student-facing tasks."
+###
+###[cleanup_avatar_prompts.versions.v1]
+###file = "cleanup_avatar_prompts/v1.md"
+###notes = "All-mode avatar prompt generation with worksheet-grounded mode instructions."
