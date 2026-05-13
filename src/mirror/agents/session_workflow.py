@@ -13,6 +13,19 @@ from mirror.agents.session_state import SessionState
 logger = logging.getLogger(__name__)
 
 
+def _route_after_transcript(state: SessionState) -> str:
+    """
+    Stop the workflow early when transcript validation fails.
+
+    This makes the graph behavior explicit instead of relying on later nodes
+    silently skipping work when state["error"] exists.
+    """
+    if state.get("error"):
+        return "error"
+
+    return "ok"
+
+
 def build_session_workflow():
     graph = StateGraph(SessionState)
 
@@ -22,7 +35,16 @@ def build_session_workflow():
     graph.add_node("persist_report", persist_session_report_node)
 
     graph.add_edge(START, "build_transcript")
-    graph.add_edge("build_transcript", "homework_analysis")
+
+    graph.add_conditional_edges(
+        "build_transcript",
+        _route_after_transcript,
+        {
+            "error": END,
+            "ok": "homework_analysis",
+        },
+    )
+
     graph.add_edge("homework_analysis", "recommendation_analysis")
     graph.add_edge("recommendation_analysis", "persist_report")
     graph.add_edge("persist_report", END)

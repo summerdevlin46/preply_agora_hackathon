@@ -22,6 +22,14 @@ description = "Generate teacher-facing post-session recommendations."
 file = "recommendation_report/v1.md"
 notes = "Transcript-only recommendation report."
 
+[homework_analysis]
+active = "v1"
+description = "Generate a concise teacher-facing homework summary from a transcript."
+
+[homework_analysis.versions.v1]
+file = "homework_analysis/v1.md"
+notes = "Transcript-only homework summary prompt."
+
 [cleanup_single_mode]
 active = "v1"
 description = "Generate one worksheet-grounded AfterClass avatar prompt and three student-facing tasks."

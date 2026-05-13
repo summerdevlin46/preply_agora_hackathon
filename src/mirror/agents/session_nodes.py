@@ -1,29 +1,13 @@
 import logging
 from typing import Any
 
+from mirror.generation.prompt_loader import load_prompt_spec
 from mirror.agents.session_state import SessionState
 from mirror.api.config_store import save_homework_wrap, save_session_analysis
 
 logger = logging.getLogger(__name__)
 
-
-_HOMEWORK_ANALYSIS_PROMPT = """You are writing a brief teacher-facing post-homework review.
-
-Use the transcript below to identify concrete strengths and struggles.
-Be specific and cite the transcript by line number when relevant.
-Do not infer pronunciation, confidence, emotion, or audio quality unless the transcript explicitly contains that information.
-Keep the output concise and directly usable by a teacher.
-
-Return plain text with:
-1. Overall outcome: 1-2 sentences.
-2. Strengths: short sentence.
-3. Struggles: 2-4 bullet-style lines beginning with "- ".
-4. Recommended follow-up: 1 short sentence.
-
-Transcript:
-{transcript}
-"""
-
+HOMEWORK_ANALYSIS_PROMPT_SPEC = load_prompt_spec("homework_analysis")
 
 def _build_fallback_homework_analysis(
     transcript_lines: list[str],
@@ -77,14 +61,20 @@ def _looks_like_bad_homework_analysis(analysis: str) -> bool:
 
 
 def _generate_homework_analysis(transcript: str) -> str:
+    logger.info(
+        "Using homework analysis prompt name=%s version=%s sha=%s",
+        HOMEWORK_ANALYSIS_PROMPT_SPEC.name,
+        HOMEWORK_ANALYSIS_PROMPT_SPEC.version,
+        HOMEWORK_ANALYSIS_PROMPT_SPEC.sha256[:12],
+    )
     from mirror.models.factory import generate_with_backend
 
     analysis = generate_with_backend(
-        prompt=_HOMEWORK_ANALYSIS_PROMPT.format(transcript=transcript),
+        prompt=HOMEWORK_ANALYSIS_PROMPT_SPEC.content.replace("{transcript}", transcript),
         task="report",
         system_prompt=(
             "You are writing a brief teacher-facing post-homework review. "
-            "Be specific, cite the transcript by line number, and keep output concise."
+            "Use only transcript evidence and keep output concise."
         ),
     ).strip()
 

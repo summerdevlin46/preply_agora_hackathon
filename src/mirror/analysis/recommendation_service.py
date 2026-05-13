@@ -496,6 +496,7 @@ async def analyze_session(
         areas_to_improve=str(parsed.get("areas_to_improve", "")),
         suggested_next_topic=str(parsed.get("suggested_next_topic", "")),
         raw_recommendations={
+            "type": "recommendation_report",
             **parsed,
             "transcript_signals": {
                 "student_turn_count": signals.student_turn_count,
