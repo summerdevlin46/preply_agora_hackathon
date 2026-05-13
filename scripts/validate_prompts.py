@@ -16,6 +16,7 @@ REQUIRED_PROMPTS = {
         "sections",
     ],
     "recommendation_report": ["{transcript}"],
+    "homework_analysis": ["{transcript}"],
 }
 
 

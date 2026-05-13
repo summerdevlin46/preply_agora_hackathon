@@ -27,12 +27,13 @@ max_tokens = 1800
 temperature = 0.0
 
 [generation.fallback]
-enabled = true
+enabled = false
 file = "config/demo_fallbacks/cooking_present_continuous.json"
 description = "Demo fallback for cooking + present continuous."
 
 [ocr]
-###priority = ["pdf_text", "mistral_ocr"]  # only using pdf while they fix mistral
+# priority = ["pdf_text", "mistral_ocr"]
+# Only using pdf_text while Mistral OCR is being stabilized.
 priority = ["pdf_text"]
 
 [ocr.pdf_text]
@@ -44,28 +45,31 @@ api_key_env = "MISTRAL_API_KEY"
 ocr_model = "mistral-ocr-latest"
 chat_model = "mistral-small-latest"
 
-
 [providers.bedrock]
 kind = "bedrock"
 enabled = false
 model = "us.anthropic.claude-sonnet-4-6"
+model_env = "AFTERCLASS_BEDROCK_MODEL"
 region = "us-east-2"
+region_env = "AWS_REGION"
 
 [providers.openai]
 kind = "openai_compatible"
 enabled = true
 model = "gpt-5"
+model_env = "AFTERCLASS_OPENAI_MODEL"
 api_key_env = "OPENAI_API_KEY"
+
+[providers.openai.task_models]
+ocr = "gpt-4o-mini"
+exercise = "gpt-4o"
 
 [providers.mistral]
 kind = "mistral"
 enabled = true
 model = "mistral-large-latest"
+model_env = "AFTERCLASS_MISTRAL_MODEL"
 api_key_env = "MISTRAL_API_KEY"
-
-[providers.openai.task_models]
-ocr = "gpt-4o-mini"
-exercise = "gpt-4o"
 
 [providers.local_oss]
 kind = "openai_compatible"
@@ -73,6 +77,7 @@ enabled = true
 base_url = "http://127.0.0.1:8081/v1"
 base_url_env = "AFTERCLASS_LOCAL_OSS_BASE_URL"
 model = "HuggingFaceTB/SmolLM2-360M-Instruct"
+model_env = "AFTERCLASS_LOCAL_OSS_MODEL"
 api_key_env = "AFTERCLASS_LOCAL_OSS_API_KEY"
 api_key_default = "local-not-used"
 

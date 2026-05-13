@@ -32,7 +32,10 @@ def is_provider_configured(provider_name: str) -> bool:
     if provider.kind == "openai_compatible":
         # Local OSS usually has a base URL and dummy API key.
         # Hosted OpenAI-compatible providers need a real API key.
-        return bool(provider.base_url) or is_real_secret(provider.api_key)
+        if provider_name == "local_oss":
+            return bool(provider.base_url)
+
+        return is_real_secret(provider.api_key)
 
     if provider.kind == "bedrock":
         config = get_provider_config(provider_name)
@@ -60,10 +63,18 @@ def select_provider() -> str:
         provider = get_provider_runtime_config(configured)
         if provider.kind not in VALID_PROVIDER_KINDS:
             raise RuntimeError(
-                f"Invalid provider kind for {configured!r}: {provider.kind!r}. "
-                f"Use one of: {', '.join(sorted(VALID_PROVIDER_KINDS))}."
+                    f"Invalid provider kind for {configured!r}: {provider.kind!r}. "
+                    f"Use one of: {', '.join(sorted(VALID_PROVIDER_KINDS))}."
             )
+    
+        if not is_provider_configured(configured):
+            raise RuntimeError(
+                f"Configured model provider {configured!r} is not available. "
+                "Check provider enabled flag, credentials, base URL, or model settings."
+            )
+    
         return configured
+
 
     for provider_name in get_provider_priority():
         if is_provider_configured(provider_name):
