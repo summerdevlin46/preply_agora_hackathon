@@ -9,6 +9,7 @@ PROMPTS_DIR = Path("prompts")
 REGISTRY_PATH = PROMPTS_DIR / "registry.toml"
 
 
+
 REQUIRED_PROMPTS = {
     "ocr_structuring": [
         "Return valid JSON only",
@@ -17,6 +18,8 @@ REQUIRED_PROMPTS = {
     ],
     "recommendation_report": ["{transcript}"],
     "homework_analysis": ["{transcript}"],
+    "cleanup_json_repair": [],
+    "cleanup_scaffold_single_mode": [],
 }
 
 

@@ -37,7 +37,9 @@ def cleanup_node(state: ExerciseState) -> ExerciseState:
                 worksheet_json=worksheet_json,
             )
     except Exception as exc:
-        logger.error("Cleanup node failed: %s", exc)
+        ##logger.error("Cleanup node failed: %s", exc)
+        logger.warning("Cleanup node failed; workflow may use fallback: %s", exc)
+        logger.debug("Cleanup node failure details", exc_info=True)
         return {"error": str(exc)}
 
     return {"avatar_prompts": avatar_prompts, "error": ""}
