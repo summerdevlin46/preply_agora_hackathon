@@ -34,6 +34,13 @@ class StudentAnalysisResponse(BaseModel):
     raw_turns: list[dict] = Field(default_factory=list)
 
 
+class TeacherRecommendationResponse(BaseModel):
+    chat_id: str
+    confidence_score: float = Field(default=0.0)
+    fluency_score: float = Field(default=0.0)
+    transcript: str = Field(default="")
+    analysis: str = Field(default="")
+
 class TeacherReportResponse(BaseModel):
     chat_id: str
     transcript: str = Field(default="")

@@ -81,18 +81,29 @@ def get_model_config() -> dict[str, Any]:
 
 
 def get_routing_provider() -> str:
+    env_provider = os.getenv("AFTERCLASS_MODEL_PROVIDER", "").strip()
+    if env_provider:
+        return env_provider.lower()
+
     config = get_model_config()
     routing = config.get("model_routing", {})
 
     value = routing.get("provider", routing.get("backend", "auto"))
-    return str(value).strip().lower()
-
+    return str(value).strip().lower() or "auto"
 
 def get_provider_priority() -> list[str]:
+    env_priority = os.getenv("AFTERCLASS_MODEL_PRIORITY", "").strip()
+    if env_priority:
+        return [
+            item.strip().lower()
+            for item in env_priority.split(",")
+            if item.strip()
+        ]
+
     config = get_model_config()
     priority = config.get("model_routing", {}).get(
         "priority",
-        ["bedrock", "openai", "local_oss"],
+        ["bedrock", "openai", "mistral", "local_oss"],
     )
     return [str(item).strip().lower() for item in priority if str(item).strip()]
 

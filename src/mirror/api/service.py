@@ -10,7 +10,6 @@ from mirror.api.config_store import (
     get_chat_instructions_by_id,
     get_chat_session_by_id,
     save_chat_instructions,
-    save_homework_wrap,
 )
 from mirror.generation.demo_fallback import (
     demo_fallback_warning,
@@ -287,13 +286,15 @@ def get_chat_session(chat_id: str) -> ChatSessionResponse:
 
     return ChatSessionResponse(**session)
 
-
-def complete_homework(
+async def complete_homework(
     chat_id: str,
     payload: HomeworkCompletionRequest,
 ) -> HomeworkCompletionResponse:
+    from mirror.agents.session_workflow import run_session_workflow
+
     normalized_chat_id = chat_id.strip()
     total_messages = len(payload.messages)
+
     logger.info(
         "complete_homework started for chat_id=%s with %s incoming messages",
         normalized_chat_id or "<empty>",
@@ -301,91 +302,34 @@ def complete_homework(
     )
 
     if not normalized_chat_id:
-        logger.warning("complete_homework rejected request with empty chat_id")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Chat id is required.",
         )
 
-    transcript_lines: list[str] = []
-    skipped_empty_messages = 0
-    for index, message in enumerate(payload.messages, start=1):
-        content = message.content.strip()
-        if not content:
-            skipped_empty_messages += 1
-            continue
-
-        interruption_suffix = " [interrupted]" if message.interrupted else ""
-        transcript_lines.append(
-            f"{index}. {message.role.upper()}: {content}{interruption_suffix}"
-        )
-
-    logger.info(
-        (
-            "complete_homework built transcript for chat_id=%s with %s lines "
-            "(skipped_empty_messages=%s)"
-        ),
-        normalized_chat_id,
-        len(transcript_lines),
-        skipped_empty_messages,
-    )
-
-    if not transcript_lines:
-        logger.warning(
-            "complete_homework rejected chat_id=%s because transcript was empty after normalization",
-            normalized_chat_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Transcript messages are required.",
-        )
-
-    transcript = "\n".join(transcript_lines)
-    logger.info(
-        "complete_homework requesting analysis for chat_id=%s (transcript_chars=%s)",
-        normalized_chat_id,
-        len(transcript),
-    )
-
-    try:
-        analysis = _generate_homework_analysis(transcript)
-        logger.info(
-            "complete_homework generated analysis for chat_id=%s (analysis_chars=%s)",
-            normalized_chat_id,
-            len(analysis),
-        )
-    except Exception as exc:
-        logger.exception(
-            "complete_homework analysis generation failed for chat_id=%s; using fallback",
-            normalized_chat_id,
-        )
-        analysis = _build_fallback_homework_analysis(
-            transcript_lines=transcript_lines,
-            failure_reason=str(exc),
-        )
-        logger.warning(
-            "complete_homework fallback analysis created for chat_id=%s (analysis_chars=%s)",
-            normalized_chat_id,
-            len(analysis),
-        )
-
-    was_updated = save_homework_wrap(
+    result = await run_session_workflow(
         chat_id=normalized_chat_id,
-        transcript=transcript,
-        analysis=analysis,
+        messages=payload.messages,
     )
-    if not was_updated:
-        logger.error(
-            "complete_homework could not persist results because chat config was missing for chat_id=%s",
-            normalized_chat_id,
+
+    error = result.get("error", "")
+    if error:
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if error.startswith("Chat config entry not found")
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
         )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Chat config entry not found for id '{normalized_chat_id}'.",
+            status_code=status_code,
+            detail=error,
         )
 
+    analysis = result.get("homework_analysis", "")
+
     logger.info(
-        "complete_homework persisted transcript and analysis for chat_id=%s",
+        "complete_homework finished for chat_id=%s analysis_chars=%s",
         normalized_chat_id,
+        len(analysis),
     )
+
     return HomeworkCompletionResponse(analysis=analysis)

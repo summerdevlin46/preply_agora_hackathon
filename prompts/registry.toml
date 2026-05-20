@@ -22,6 +22,14 @@ description = "Generate teacher-facing post-session recommendations."
 file = "recommendation_report/v1.md"
 notes = "Transcript-only recommendation report."
 
+[homework_analysis]
+active = "v1"
+description = "Generate a concise teacher-facing homework summary from a transcript."
+
+[homework_analysis.versions.v1]
+file = "homework_analysis/v1.md"
+notes = "Transcript-only homework summary prompt."
+
 [cleanup_single_mode]
 active = "v1"
 description = "Generate one worksheet-grounded AfterClass avatar prompt and three student-facing tasks."
@@ -29,6 +37,26 @@ description = "Generate one worksheet-grounded AfterClass avatar prompt and thre
 [cleanup_single_mode.versions.v1]
 file = "cleanup_single_mode/v1.md"
 notes = "Single-mode avatar prompt generation with worksheet-grounded mode instructions."
+
+[cleanup_json_repair]
+active = "v1"
+description = "Repair failed cleanup model output into the strict single-mode cleanup JSON schema."
+
+[cleanup_json_repair.versions.v1]
+file = "cleanup_json_repair/v1.md"
+notes = "Strict JSON-only repair prompt for local or weak models that return prose, markdown, or malformed cleanup output."
+
+[cleanup_scaffold_single_mode]
+active = "v2"
+description = "Generate a simplified valid cleanup response when local models fail strict cleanup and repair."
+
+[cleanup_scaffold_single_mode.versions.v1]
+file = "cleanup_scaffold_single_mode/v1.md"
+notes = "Prompt-backed scaffold fallback for weak local models; still returns the normal cleanup JSON schema."
+
+[cleanup_scaffold_single_mode.versions.v2]
+file = "cleanup_scaffold_single_mode/v2.md"
+notes = "Stricter scaffold prompt that avoids copying worksheet-summary or answer-key structures."
 
 #NOTE possibly deprecated
 ###[cleanup_avatar_prompts]

@@ -59,7 +59,8 @@ def generate_with_backend(
         )
 
     except Exception as exc:
-        logger.exception("Model provider '%s' failed", provider_name)
+        logger.warning("Model provider '%s' failed: %s", provider_name, exc)
+        logger.debug("Model provider failure details", exc_info=True)
         raise RuntimeError(
             f"Model provider '{provider_name}' failed. "
             "Check provider configuration, credentials, model ID, or local server status."

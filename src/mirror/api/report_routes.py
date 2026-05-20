@@ -1,19 +1,12 @@
 import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel
+
+from mirror.api.schemas import TeacherRecommendationResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/report", tags=["report"])
-
-
-class TeacherReportResponse(BaseModel):
-    chat_id: str
-    confidence_score: float = 0.0
-    fluency_score: float = 0.0
-    transcript: str
-    analysis: str
 
 
 def _format_analysis(
@@ -35,8 +28,8 @@ def _format_analysis(
     )
 
 
-@router.post("/analyze", response_model=TeacherReportResponse)
-@router.post("/analyse", response_model=TeacherReportResponse)
+@router.post("/analyze", response_model=TeacherRecommendationResponse)
+@router.post("/analyse", response_model=TeacherRecommendationResponse)
 async def analyze_session(
     chat_id: str = Form(...),
     transcript: str = Form(default=""),
@@ -81,7 +74,7 @@ async def analyze_session(
 
     merged = get_teacher_report(chat_id) or {}
 
-    return TeacherReportResponse(
+    return TeacherRecommendationResponse(
         chat_id=chat_id,
         confidence_score=0.0,
         fluency_score=0.0,
@@ -90,7 +83,7 @@ async def analyze_session(
     )
 
 
-@router.get("/{chat_id}/teacher", response_model=TeacherReportResponse)
+@router.get("/{chat_id}/teacher", response_model=TeacherRecommendationResponse)
 def get_teacher_report_endpoint(chat_id: str):
     from mirror.api.config_store import get_teacher_report
 
@@ -101,7 +94,7 @@ def get_teacher_report_endpoint(chat_id: str):
             detail="Report not found. Session may not be complete yet.",
         )
 
-    return TeacherReportResponse(
+    return TeacherRecommendationResponse(
         chat_id=report["chat_id"],
         confidence_score=report.get("confidence_score", 0.0),
         fluency_score=report.get("fluency_score", 0.0),

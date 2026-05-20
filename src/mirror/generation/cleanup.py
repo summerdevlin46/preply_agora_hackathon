@@ -30,6 +30,12 @@ MODES = [
 CLEANUP_PROMPT_NAME = "cleanup_single_mode"
 CLEANUP_PROMPT_SPEC = load_prompt_spec(CLEANUP_PROMPT_NAME)
 
+CLEANUP_REPAIR_PROMPT_NAME = "cleanup_json_repair"
+CLEANUP_REPAIR_PROMPT_SPEC = load_prompt_spec(CLEANUP_REPAIR_PROMPT_NAME)
+
+CLEANUP_SCAFFOLD_PROMPT_NAME = "cleanup_scaffold_single_mode"
+CLEANUP_SCAFFOLD_PROMPT_SPEC = load_prompt_spec(CLEANUP_SCAFFOLD_PROMPT_NAME)
+
 
 def _build_user_message(
     teacher_notes: str,
@@ -84,6 +90,117 @@ def _extract_json_object(raw: str) -> str:
 
     return text[start : end + 1]
 
+def _truncate_text(text: str, limit: int = 4000) -> str:
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+
+    return stripped[:limit] + "\n\n...[truncated]..."
+
+
+def _build_repair_message(
+    *,
+    mode: str,
+    user_message: str,
+    raw_response: str,
+    error: str,
+) -> str:
+    return (
+        f"MODE TO REPAIR:\n{mode}\n\n"
+        f"VALIDATION ERROR:\n{error}\n\n"
+        "The response below failed validation. Convert it into the required "
+        "AfterClass JSON schema. Do not preserve worksheet-summary structures.\n\n"
+        "ORIGINAL CLEANUP REQUEST, TRUNCATED:\n"
+        "<<<\n"
+        f"{_truncate_text(user_message, 2500)}\n"
+        ">>>\n\n"
+        "FAILED RESPONSE, TRUNCATED:\n"
+        "<<<\n"
+        f"{_truncate_text(raw_response, 1500)}\n"
+        ">>>"
+    )
+
+
+def _build_scaffold_message(
+    *,
+    mode: str,
+    user_message: str,
+    raw_response: str,
+    repair_response: str | None,
+    error: str,
+) -> str:
+    return (
+        f"MODE TO GENERATE:\n{mode}\n\n"
+        f"VALIDATION ERROR:\n{error}\n\n"
+        "The previous cleanup and repair attempts failed. Do not copy their structure. "
+        "Do not summarize the worksheet. Generate a fresh AfterClass activity JSON object.\n\n"
+        "ORIGINAL CLEANUP REQUEST, TRUNCATED:\n"
+        "<<<\n"
+        f"{_truncate_text(user_message, 3500)}\n"
+        ">>>\n\n"
+        "IMPORTANT: Return only the required AfterClass JSON schema with top-level keys "
+        '"prompt" and "tasks".'
+    )
+
+
+def _run_repair_model(
+    *,
+    raw_response: str,
+    mode: str,
+    user_message: str,
+    error: RuntimeError,
+) -> str:
+    logger.warning(
+        "Attempting cleanup JSON repair prompt=%s version=%s sha=%s mode=%s",
+        CLEANUP_REPAIR_PROMPT_SPEC.name,
+        CLEANUP_REPAIR_PROMPT_SPEC.version,
+        CLEANUP_REPAIR_PROMPT_SPEC.sha256[:12],
+        mode,
+    )
+
+    return generate_with_backend(
+        prompt=_build_repair_message(
+            mode=mode,
+            user_message=user_message,
+            raw_response=raw_response,
+            error=str(error),
+        ),
+        task="cleanup",
+        system_prompt=CLEANUP_REPAIR_PROMPT_SPEC.content,
+    ).strip()
+
+
+def _run_scaffold_model(
+    *,
+    mode: str,
+    user_message: str,
+    raw_response: str,
+    repair_response: str | None,
+    error: str,
+) -> dict[str, Any]:
+    logger.warning(
+        "Attempting cleanup scaffold prompt=%s version=%s sha=%s mode=%s",
+        CLEANUP_SCAFFOLD_PROMPT_SPEC.name,
+        CLEANUP_SCAFFOLD_PROMPT_SPEC.version,
+        CLEANUP_SCAFFOLD_PROMPT_SPEC.sha256[:12],
+        mode,
+    )
+
+    scaffold_raw = generate_with_backend(
+        prompt=_build_scaffold_message(
+            mode=mode,
+            user_message=user_message,
+            raw_response=raw_response,
+            repair_response=repair_response,
+            error=error,
+        ),
+        task="cleanup",
+        system_prompt=CLEANUP_SCAFFOLD_PROMPT_SPEC.content,
+    ).strip()
+
+    return _parse_single_mode_response(scaffold_raw, mode)
+
+
 
 def _parse_single_mode_response(raw: str, mode: str) -> dict[str, Any]:
     text = _extract_json_object(raw)
@@ -91,7 +208,7 @@ def _parse_single_mode_response(raw: str, mode: str) -> dict[str, Any]:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError as exc:
-        logger.error(
+        logger.warning(
             "Cleanup model returned invalid JSON for mode=%s:\n%s",
             mode,
             preview_text(raw),
@@ -105,14 +222,32 @@ def _parse_single_mode_response(raw: str, mode: str) -> dict[str, Any]:
 
     prompt = str(parsed.get("prompt", "")).strip()
     if not prompt:
+        logger.warning(
+            "Cleanup model returned empty or missing prompt for mode=%s. Raw output:\n%s",
+            mode,
+            preview_text(raw),
+        )
         raise RuntimeError(f"Cleanup model returned empty or missing prompt for mode '{mode}'.")
-
+    
     tasks = parsed.get("tasks", [])
     if not isinstance(tasks, list):
+        logger.warning(
+            "Cleanup model returned invalid tasks for mode=%s. Raw output:\n%s",
+            mode,
+            preview_text(raw),
+        )
         raise RuntimeError(f"Cleanup model returned invalid tasks for mode '{mode}'.")
-
+    
     if len(tasks) != 3:
+        logger.warning(
+            "Cleanup model returned wrong task count for mode=%s got=%s. Raw output:\n%s",
+            mode,
+            len(tasks),
+            preview_text(raw),
+        )
         raise RuntimeError(f"Expected 3 tasks for mode '{mode}', got {len(tasks)}.")
+
+
 
     normalized_tasks: list[dict[str, str]] = []
     for task in tasks:
@@ -165,14 +300,47 @@ def _run_single_mode(
         bool(feedback),
     )
 
+
     raw = generate_with_backend(
         prompt=user_message,
         task="cleanup",
         system_prompt=CLEANUP_PROMPT_SPEC.content,
     ).strip()
-
-    return _parse_single_mode_response(raw, mode)
-
+    
+    try:
+        return _parse_single_mode_response(raw, mode)
+    except RuntimeError as first_exc:
+        logger.warning(
+            "Cleanup parse/validation failed for mode=%s; retrying JSON repair: %s",
+            mode,
+            first_exc,
+        )
+    
+        repair_raw: str | None = None
+    
+        try:
+            repair_raw = _run_repair_model(
+                raw_response=raw,
+                mode=mode,
+                user_message=user_message,
+                error=first_exc,
+            )
+            return _parse_single_mode_response(repair_raw, mode)
+        except RuntimeError as repair_exc:
+            logger.warning(
+                "Cleanup JSON repair failed for mode=%s; retrying scaffold generation: %s",
+                mode,
+                repair_exc,
+            )
+    
+            return _run_scaffold_model(
+                mode=mode,
+                user_message=user_message,
+                raw_response=raw,
+                repair_response=repair_raw,
+                error=str(repair_exc),
+            )
+    
 
 def run_cleanup(
     teacher_notes: str,
