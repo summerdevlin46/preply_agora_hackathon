@@ -90,19 +90,12 @@ def _extract_json_object(raw: str) -> str:
 
     return text[start : end + 1]
 
-def _truncate_middle(text: str, limit: int = 12000) -> str:
+def _truncate_text(text: str, limit: int = 4000) -> str:
     stripped = text.strip()
     if len(stripped) <= limit:
         return stripped
 
-    head_len = limit // 2
-    tail_len = limit - head_len
-
-    return (
-        stripped[:head_len]
-        + "\n\n...[truncated for cleanup JSON repair]...\n\n"
-        + stripped[-tail_len:]
-    )
+    return stripped[:limit] + "\n\n...[truncated]..."
 
 
 def _build_repair_message(
@@ -115,45 +108,18 @@ def _build_repair_message(
     return (
         f"MODE TO REPAIR:\n{mode}\n\n"
         f"VALIDATION ERROR:\n{error}\n\n"
-        "ORIGINAL CLEANUP REQUEST:\n"
+        "The response below failed validation. Convert it into the required "
+        "AfterClass JSON schema. Do not preserve worksheet-summary structures.\n\n"
+        "ORIGINAL CLEANUP REQUEST, TRUNCATED:\n"
         "<<<\n"
-        f"{_truncate_middle(user_message)}\n"
+        f"{_truncate_text(user_message, 2500)}\n"
         ">>>\n\n"
-        "FAILED MODEL RESPONSE:\n"
+        "FAILED RESPONSE, TRUNCATED:\n"
         "<<<\n"
-        f"{_truncate_middle(raw_response)}\n"
-        ">>>\n\n"
-        "Convert the failed response into the required JSON object for this mode."
+        f"{_truncate_text(raw_response, 1500)}\n"
+        ">>>"
     )
 
-
-def _repair_single_mode_response(
-    *,
-    raw_response: str,
-    mode: str,
-    user_message: str,
-    error: RuntimeError,
-) -> dict[str, Any]:
-    logger.warning(
-        "Attempting cleanup JSON repair prompt=%s version=%s sha=%s mode=%s",
-        CLEANUP_REPAIR_PROMPT_SPEC.name,
-        CLEANUP_REPAIR_PROMPT_SPEC.version,
-        CLEANUP_REPAIR_PROMPT_SPEC.sha256[:12],
-        mode,
-    )
-
-    repaired_raw = generate_with_backend(
-        prompt=_build_repair_message(
-            mode=mode,
-            user_message=user_message,
-            raw_response=raw_response,
-            error=str(error),
-        ),
-        task="cleanup",
-        system_prompt=CLEANUP_REPAIR_PROMPT_SPEC.content,
-    ).strip()
-
-    return _parse_single_mode_response(repaired_raw, mode)
 
 def _build_scaffold_message(
     *,
@@ -163,25 +129,19 @@ def _build_scaffold_message(
     repair_response: str | None,
     error: str,
 ) -> str:
-    parts = [
-        f"MODE TO GENERATE:\n{mode}",
-        f"VALIDATION ERROR:\n{error}",
-        "ORIGINAL CLEANUP REQUEST:\n<<<\n"
-        f"{user_message[:12000]}\n"
-        ">>>",
-        "FAILED CLEANUP RESPONSE:\n<<<\n"
-        f"{raw_response[:12000]}\n"
-        ">>>",
-    ]
+    return (
+        f"MODE TO GENERATE:\n{mode}\n\n"
+        f"VALIDATION ERROR:\n{error}\n\n"
+        "The previous cleanup and repair attempts failed. Do not copy their structure. "
+        "Do not summarize the worksheet. Generate a fresh AfterClass activity JSON object.\n\n"
+        "ORIGINAL CLEANUP REQUEST, TRUNCATED:\n"
+        "<<<\n"
+        f"{_truncate_text(user_message, 3500)}\n"
+        ">>>\n\n"
+        "IMPORTANT: Return only the required AfterClass JSON schema with top-level keys "
+        '"prompt" and "tasks".'
+    )
 
-    if repair_response:
-        parts.append(
-            "FAILED REPAIR RESPONSE:\n<<<\n"
-            f"{repair_response[:12000]}\n"
-            ">>>"
-        )
-
-    return "\n\n".join(parts)
 
 def _run_repair_model(
     *,
@@ -208,6 +168,7 @@ def _run_repair_model(
         task="cleanup",
         system_prompt=CLEANUP_REPAIR_PROMPT_SPEC.content,
     ).strip()
+
 
 def _run_scaffold_model(
     *,
@@ -240,6 +201,7 @@ def _run_scaffold_model(
     return _parse_single_mode_response(scaffold_raw, mode)
 
 
+
 def _parse_single_mode_response(raw: str, mode: str) -> dict[str, Any]:
     text = _extract_json_object(raw)
 
@@ -260,14 +222,32 @@ def _parse_single_mode_response(raw: str, mode: str) -> dict[str, Any]:
 
     prompt = str(parsed.get("prompt", "")).strip()
     if not prompt:
+        logger.warning(
+            "Cleanup model returned empty or missing prompt for mode=%s. Raw output:\n%s",
+            mode,
+            preview_text(raw),
+        )
         raise RuntimeError(f"Cleanup model returned empty or missing prompt for mode '{mode}'.")
-
+    
     tasks = parsed.get("tasks", [])
     if not isinstance(tasks, list):
+        logger.warning(
+            "Cleanup model returned invalid tasks for mode=%s. Raw output:\n%s",
+            mode,
+            preview_text(raw),
+        )
         raise RuntimeError(f"Cleanup model returned invalid tasks for mode '{mode}'.")
-
+    
     if len(tasks) != 3:
+        logger.warning(
+            "Cleanup model returned wrong task count for mode=%s got=%s. Raw output:\n%s",
+            mode,
+            len(tasks),
+            preview_text(raw),
+        )
         raise RuntimeError(f"Expected 3 tasks for mode '{mode}', got {len(tasks)}.")
+
+
 
     normalized_tasks: list[dict[str, str]] = []
     for task in tasks:

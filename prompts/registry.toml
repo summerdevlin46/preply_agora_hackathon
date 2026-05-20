@@ -47,12 +47,16 @@ file = "cleanup_json_repair/v1.md"
 notes = "Strict JSON-only repair prompt for local or weak models that return prose, markdown, or malformed cleanup output."
 
 [cleanup_scaffold_single_mode]
-active = "v1"
+active = "v2"
 description = "Generate a simplified valid cleanup response when local models fail strict cleanup and repair."
 
 [cleanup_scaffold_single_mode.versions.v1]
 file = "cleanup_scaffold_single_mode/v1.md"
 notes = "Prompt-backed scaffold fallback for weak local models; still returns the normal cleanup JSON schema."
+
+[cleanup_scaffold_single_mode.versions.v2]
+file = "cleanup_scaffold_single_mode/v2.md"
+notes = "Stricter scaffold prompt that avoids copying worksheet-summary or answer-key structures."
 
 #NOTE possibly deprecated
 ###[cleanup_avatar_prompts]

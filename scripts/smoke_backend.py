@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import httpx
+import os
 
 from mirror.ocr.parser import parse_worksheet
 
 
 BASE_URL = "http://127.0.0.1:8000"
+REQUEST_TIMEOUT = float(os.getenv("SMOKE_API_TIMEOUT", "300"))
 BASE_CHAT_ID = "smoke-adverbs"
 MODE = "avatar_conversation"
 CHAT_ID = f"{BASE_CHAT_ID}-{MODE}"
@@ -29,7 +31,7 @@ def main() -> None:
     generated = httpx.post(
         f"{BASE_URL}/api/exercises/generate",
         json=generate_payload,
-        timeout=120,
+        timeout=REQUEST_TIMEOUT,
     )
     generated.raise_for_status()
     generated_json = generated.json()
