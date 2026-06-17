@@ -1,3 +1,3 @@
-from .thymia_service import analyze_session, TeacherReport
- 
-__all__ = ["analyze_session", "TeacherReport"]
+from .recommendation_service import RecommendationReport, analyze_session
+
+__all__ = ["RecommendationReport", "analyze_session"]

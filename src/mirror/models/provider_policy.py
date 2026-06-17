@@ -41,13 +41,9 @@ def is_provider_configured(provider_name: str) -> bool:
 
         return bool(
             os.getenv("AWS_PROFILE")
-            or has_any_env(
-                [
-                    "AWS_ACCESS_KEY_ID",
-                    "AWS_SECRET_ACCESS_KEY",
-                    "AWS_DEFAULT_REGION",
-                    "AWS_REGION",
-                ]
+            or (
+                os.getenv("AWS_ACCESS_KEY_ID")
+                and os.getenv("AWS_SECRET_ACCESS_KEY")
             )
         )
 

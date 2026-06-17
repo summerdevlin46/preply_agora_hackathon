@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+// const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+import { getApiBaseUrl } from "@/lib/api";
 
 export const DEFAULT_CHAT_INSTRUCTIONS = `You are the live speaking tutor for the Mirror demo.
 Keep answers concise, spoken, and natural.
@@ -33,9 +34,6 @@ export type TeacherReportResponse = {
   student_analysis: StudentAnalysis;
 };
 
-function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
-}
 
 export async function getDefaultChatInstructions() {
   try {

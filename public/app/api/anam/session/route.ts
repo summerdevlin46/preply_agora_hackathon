@@ -57,7 +57,9 @@ export async function POST(request: Request) {
         avatarId: process.env.ANAM_AVATAR_ID,
         voiceId: process.env.ANAM_VOICE_ID,
         llmId: process.env.ANAM_LLM_ID,
-        languageCode: process.env.ANAM_LANGUAGE_CODE,
+        ...(process.env.ANAM_LANGUAGE_CODE
+          ? { languageCode: process.env.ANAM_LANGUAGE_CODE }
+          : {}),
         maxSessionLengthSeconds: 900,
         systemPrompt: buildSystemPrompt(instructions),
       },

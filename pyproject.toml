@@ -17,7 +17,7 @@ dependencies = [
   "python-dotenv>=1.0,<2",
   "openai>=1.51,<2",
   "anthropic[bedrock]>=0.40,<1",
-  "mistralai>=1.0,<2",
+  #"mistralai>=1.0,<2", # buttheads...
 
   # I/O and transport
   "httpx>=0.27,<0.28",
@@ -51,9 +51,9 @@ documents = [
   "python-docx>=1.1,<2",
 ]
 
-##apple_local = [
-##  "mlx-lm>=0.28,<1",
-##]
+apple_local = [
+  "mlx-lm>=0.28,<1",
+]
 
 #TODO: if doing local runs or better yet some sort of modeling directly...
 ###oss_local = [
@@ -66,7 +66,6 @@ audio = [
   "numpy>=1.26,<=2.4.3",
   # "soundfile>=0.12,<0.13",  # requires system lib (libsndfile)
   "pydub>=0.25,<0.26",
-  "thymia-sentinel==1.1.0"
 ]
 
 cloud = [
